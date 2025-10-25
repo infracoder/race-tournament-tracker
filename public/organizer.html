@@ -166,7 +166,14 @@
                 stopRefresh();
                 document.getElementById('dashboardContent').classList.add('hidden');
                 document.getElementById('loginCard').classList.remove('hidden');
+                
+                // Reset login form
+                const loginBtn = document.getElementById('loginBtn');
+                const messageDiv = document.getElementById('loginMessage');
                 document.getElementById('pin').value = '';
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🔓 Login';
+                messageDiv.classList.add('hidden');
             } catch (error) {
                 console.error('Logout error:', error);
             }
