@@ -37,6 +37,30 @@
             </div>
         </div>
 
+        <!-- Player Login -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">👤 Already Registered?</h2>
+            </div>
+            
+            <div class="info-box">
+                <p>Select your name below to view your schedule and track your progress.</p>
+            </div>
+
+            <form id="playerLoginForm" onsubmit="playerLogin(event)">
+                <div class="form-group">
+                    <label for="playerSelect" class="form-label">Select Your Name</label>
+                    <select id="playerSelect" class="form-select" required>
+                        <option value="">-- Loading players... --</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-large btn-block">
+                    📅 View My Schedule
+                </button>
+            </form>
+        </div>
+
         <div class="card">
             <div class="card-header">
                 <h2 class="card-title">ℹ️ Tournament Info</h2>
@@ -85,6 +109,34 @@
     </div>
 
     <script>
+        let allPlayers = [];
+
+        // Player login handler
+        function playerLogin(event) {
+            event.preventDefault();
+            const playerId = document.getElementById('playerSelect').value;
+            if (playerId) {
+                window.location.href = `/player.html?id=${playerId}`;
+            }
+        }
+
+        // Populate player dropdown
+        function populatePlayerDropdown(players) {
+            const select = document.getElementById('playerSelect');
+            allPlayers = players.players || [];
+            
+            if (allPlayers.length === 0) {
+                select.innerHTML = '<option value="">-- No players registered yet --</option>';
+                select.disabled = true;
+                document.querySelector('#playerLoginForm button').disabled = true;
+            } else {
+                select.innerHTML = '<option value="">-- Select your name --</option>' +
+                    allPlayers.map(p => `<option value="${p.id}">${p.name} (Player ${p.player_letter})</option>`).join('');
+                select.disabled = false;
+                document.querySelector('#playerLoginForm button').disabled = false;
+            }
+        }
+
         // Fetch tournament status
         async function loadTournamentStatus() {
             try {
@@ -95,6 +147,9 @@
 
                 const status = await statusRes.json();
                 const players = await playersRes.json();
+
+                // Populate player dropdown
+                populatePlayerDropdown(players);
 
                 // Update player count
                 document.getElementById('totalPlayers').textContent = players.registered || 0;
