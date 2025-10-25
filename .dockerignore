@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+.env
+data
+tournament.db
+.git
+.gitignore
+README.md
+*.md

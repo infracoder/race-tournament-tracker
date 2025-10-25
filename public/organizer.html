@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Organizer - Mario Kart Tournament</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 Organizer Dashboard</h1>
+        <p>Tournament Management</p>
+    </div>
+
+    <div class="container">
+        <!-- Login Form -->
+        <div id="loginCard" class="card">
+            <div class="card-header">
+                <h2 class="card-title">🔐 Organizer Login</h2>
+            </div>
+
+            <div class="info-box">
+                <p>Enter the organizer PIN to access tournament management.</p>
+            </div>
+
+            <form id="loginForm" onsubmit="login(event)">
+                <div class="form-group">
+                    <label for="pin" class="form-label">PIN</label>
+                    <input 
+                        type="password" 
+                        id="pin" 
+                        name="pin" 
+                        class="form-input" 
+                        placeholder="Enter PIN" 
+                        required
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        autocomplete="off">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-large btn-block" id="loginBtn">
+                    🔓 Login
+                </button>
+            </form>
+
+            <div id="loginMessage" class="mt-20 hidden"></div>
+
+            <div class="mt-20">
+                <a href="/" class="btn btn-secondary btn-block">
+                    ← Back to Home
+                </a>
+            </div>
+        </div>
+
+        <!-- Dashboard Content (shown after login) -->
+        <div id="dashboardContent" class="hidden">
+            <!-- Tournament Controls -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">⚙️ Tournament Controls</h2>
+                </div>
+
+                <div class="grid grid-2">
+                    <button onclick="initializeTournament()" class="btn btn-warning btn-large btn-block">
+                        🔄 Initialize Tournament
+                    </button>
+                    <button onclick="completeTournament()" class="btn btn-success btn-large btn-block" id="completeBtn">
+                        🏁 Complete Tournament
+                    </button>
+                </div>
+
+                <button onclick="logout()" class="btn btn-secondary btn-block mt-20">
+                    🚪 Logout
+                </button>
+
+                <div id="controlMessage" class="mt-20 hidden"></div>
+            </div>
+
+            <!-- Live Leaderboard -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🏆 Live Leaderboard</h2>
+                </div>
+
+                <div id="miniLeaderboard" class="leaderboard-table">
+                    <div class="loading-container">
+                        <div class="loading"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Race Results Entry -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🏁 Race Results</h2>
+                </div>
+
+                <div id="racesLoading" class="loading-container">
+                    <div class="loading"></div>
+                </div>
+
+                <div id="racesContent" class="hidden grid grid-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval = null;
+        let allRaces = [];
+
+        async function login(event) {
+            event.preventDefault();
+            
+            const pin = document.getElementById('pin').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const messageDiv = document.getElementById('loginMessage');
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Logging in...';
+            messageDiv.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/organizer/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('loginCard').classList.add('hidden');
+                    document.getElementById('dashboardContent').classList.remove('hidden');
+                    loadDashboard();
+                    startRefresh();
+                } else {
+                    showMessage(messageDiv, data.error || 'Invalid PIN', 'error');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '🔓 Login';
+                }
+            } catch (error) {
+                showMessage(messageDiv, 'Network error. Please try again.', 'error');
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🔓 Login';
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/organizer/logout', { method: 'POST' });
+                stopRefresh();
+                document.getElementById('dashboardContent').classList.add('hidden');
+                document.getElementById('loginCard').classList.remove('hidden');
+                document.getElementById('pin').value = '';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+
+        async function initializeTournament() {
+            if (!confirm('Initialize tournament? This will reset all data!')) return;
+
+            const messageDiv = document.getElementById('controlMessage');
+            try {
+                const response = await fetch('/api/tournament/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(messageDiv, data.message, 'success');
+                    loadDashboard();
+                } else {
+                    showMessage(messageDiv, data.error || 'Failed to initialize', 'error');
+                }
+            } catch (error) {
+                showMessage(messageDiv, 'Network error', 'error');
+            }
+        }
+
+        async function completeTournament() {
+            if (!confirm('Mark tournament as complete and declare winner?')) return;
+
+            const messageDiv = document.getElementById('controlMessage');
+            try {
+                const response = await fetch('/api/tournament/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(messageDiv, `🏆 Winner: ${data.winner.name} (${data.winner.points} pts)`, 'success');
+                    loadDashboard();
+                } else {
+                    showMessage(messageDiv, data.error || 'Failed to complete', 'error');
+                }
+            } catch (error) {
+                showMessage(messageDiv, 'Network error', 'error');
+            }
+        }
+
+        async function loadDashboard() {
+            try {
+                const [racesRes, leaderboardRes] = await Promise.all([
+                    fetch('/api/races'),
+                    fetch('/api/leaderboard')
+                ]);
+
+                const racesData = await racesRes.json();
+                const leaderboardData = await leaderboardRes.json();
+
+                allRaces = racesData.races || [];
+
+                renderRaces();
+                renderLeaderboard(leaderboardData.standings || []);
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        function renderRaces() {
+            const content = document.getElementById('racesContent');
+            
+            content.innerHTML = allRaces.map(race => {
+                const isCompleted = race.completed;
+                const statusClass = isCompleted ? 'completed' : '';
+
+                return `
+                    <div class="race-card ${statusClass}">
+                        <div class="race-card-header">
+                            <span class="race-number">Race ${race.race_number}</span>
+                            <span class="race-status ${isCompleted ? 'completed' : 'pending'}">
+                                ${isCompleted ? '✓ Done' : '⏳ Pending'}
+                            </span>
+                        </div>
+
+                        <div class="race-participants">
+                            ${race.participants.map((p, idx) => `
+                                <div class="participant">
+                                    <span class="participant-letter">${p.letter}</span>
+                                    <span>${p.name || 'TBD'}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        ${!isCompleted ? `
+                            <form onsubmit="submitRaceResult(event, ${race.race_number})" id="raceForm${race.race_number}">
+                                <div style="margin-top: 15px;">
+                                    ${race.participants.map((p, idx) => `
+                                        <div class="form-group">
+                                            <label class="form-label">${p.letter} - ${p.name || 'TBD'}</label>
+                                            <select class="form-select" name="pos_${p.id}" required>
+                                                <option value="">Select Place</option>
+                                                <option value="1">🥇 1st (25 pts)</option>
+                                                <option value="2">🥈 2nd (18 pts)</option>
+                                                <option value="3">🥉 3rd (15 pts)</option>
+                                                <option value="4">4th (12 pts)</option>
+                                            </select>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <button type="submit" class="btn btn-success btn-block">
+                                    ✓ Submit Results
+                                </button>
+                                <div class="race-message mt-20 hidden"></div>
+                            </form>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('racesLoading').classList.add('hidden');
+            document.getElementById('racesContent').classList.remove('hidden');
+        }
+
+        async function submitRaceResult(event, raceNumber) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const messageDiv = form.querySelector('.race-message');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            // Get all positions
+            const race = allRaces.find(r => r.race_number === raceNumber);
+            const placements = [];
+
+            for (const participant of race.participants) {
+                const position = parseInt(form[`pos_${participant.id}`].value);
+                placements.push({
+                    player_id: participant.id,
+                    position: position
+                });
+            }
+
+            // Validate unique positions
+            const positions = placements.map(p => p.position);
+            if (new Set(positions).size !== 4) {
+                showMessage(messageDiv, 'Each position must be unique!', 'error');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            try {
+                const response = await fetch('/api/race/result', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ race_number: raceNumber, placements })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(messageDiv, '✓ Results submitted!', 'success');
+                    setTimeout(() => {
+                        loadDashboard();
+                    }, 1000);
+                } else {
+                    showMessage(messageDiv, data.error || 'Submission failed', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '✓ Submit Results';
+                }
+            } catch (error) {
+                showMessage(messageDiv, 'Network error', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '✓ Submit Results';
+            }
+        }
+
+        function renderLeaderboard(standings) {
+            const container = document.getElementById('miniLeaderboard');
+            
+            if (standings.length === 0) {
+                container.innerHTML = `<div class="alert alert-info">No results yet.</div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Points</th>
+                            <th class="hide-mobile">1st</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${standings.slice(0, 5).map(p => `
+                            <tr>
+                                <td>${p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : p.rank}</td>
+                                <td><strong>${p.name}</strong></td>
+                                <td><strong style="color: #E60012;">${p.total_points}</strong></td>
+                                <td class="hide-mobile">${p.firsts}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function showMessage(element, message, type) {
+            element.className = `alert alert-${type}`;
+            element.textContent = message;
+            element.classList.remove('hidden');
+        }
+
+        function startRefresh() {
+            refreshInterval = setInterval(loadDashboard, 5000);
+        }
+
+        function stopRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        // Check if already logged in
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/organizer/check');
+                const data = await response.json();
+
+                if (data.authenticated) {
+                    document.getElementById('loginCard').classList.add('hidden');
+                    document.getElementById('dashboardContent').classList.remove('hidden');
+                    loadDashboard();
+                    startRefresh();
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+            }
+        }
+
+        // Check auth on page load
+        checkAuth();
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopRefresh);
+    </script>
+</body>
+</html>

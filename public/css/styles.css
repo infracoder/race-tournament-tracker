@@ -1,0 +1,658 @@
+/* Mario Kart Tournament - Mobile-First CSS */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --mario-red: #E60012;
+  --mario-yellow: #FFD700;
+  --mario-blue: #0066CC;
+  --mario-green: #00A650;
+  --background: #F5F5F5;
+  --card-bg: #FFFFFF;
+  --text-dark: #333333;
+  --text-light: #666666;
+  --border: #DDDDDD;
+  --success: #00A650;
+  --warning: #FF9900;
+  --error: #E60012;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  padding: 0;
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Container */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 15px;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 30px;
+  }
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 20px 15px;
+  background: linear-gradient(135deg, var(--mario-red) 0%, #c50010 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 20px;
+  border-radius: 0 0 20px 20px;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: 900;
+  text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.3);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+@media (min-width: 768px) {
+  .header h1 {
+    font-size: 42px;
+  }
+}
+
+.header p {
+  font-size: 14px;
+  opacity: 0.95;
+  font-weight: 500;
+}
+
+@media (min-width: 768px) {
+  .header p {
+    font-size: 18px;
+  }
+}
+
+/* Cards */
+.card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border: 2px solid var(--border);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: 30px;
+  }
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 3px solid var(--mario-yellow);
+}
+
+.card-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--mario-blue);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (min-width: 768px) {
+  .card-title {
+    font-size: 28px;
+  }
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 16px 32px;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  min-height: 54px;
+  touch-action: manipulation;
+}
+
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--mario-red) 0%, #c50010 100%);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #c50010 0%, var(--mario-red) 100%);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, var(--mario-blue) 0%, #0052a3 100%);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: linear-gradient(135deg, #0052a3 0%, var(--mario-blue) 100%);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--mario-green) 0%, #008040 100%);
+  color: white;
+}
+
+.btn-success:hover {
+  background: linear-gradient(135deg, #008040 0%, var(--mario-green) 100%);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, var(--mario-yellow) 0%, #ffc700 100%);
+  color: var(--text-dark);
+}
+
+.btn-block {
+  width: 100%;
+  display: block;
+}
+
+.btn-large {
+  font-size: 20px;
+  padding: 20px 40px;
+  min-height: 64px;
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: var(--text-dark);
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 16px;
+  font-size: 18px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  transition: all 0.3s ease;
+  min-height: 54px;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--mario-blue);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid-2 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.grid-3 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Race Card */
+.race-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  border: 3px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.race-card.completed {
+  border-color: var(--mario-green);
+  background: #f0fff0;
+}
+
+.race-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+
+.race-number {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--mario-red);
+}
+
+.race-status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.race-status.pending {
+  background: var(--warning);
+  color: white;
+}
+
+.race-status.completed {
+  background: var(--success);
+  color: white;
+}
+
+.race-participants {
+  margin-bottom: 15px;
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--background);
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.participant-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--mario-blue);
+  color: white;
+  border-radius: 50%;
+  font-weight: 900;
+  margin-right: 12px;
+  font-size: 18px;
+}
+
+/* Leaderboard Table */
+.leaderboard-table {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.leaderboard-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.leaderboard-table th {
+  background: linear-gradient(135deg, var(--mario-red) 0%, #c50010 100%);
+  color: white;
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  .leaderboard-table th {
+    font-size: 16px;
+  }
+}
+
+.leaderboard-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+
+@media (min-width: 768px) {
+  .leaderboard-table td {
+    font-size: 16px;
+  }
+}
+
+.leaderboard-table tr:last-child td {
+  border-bottom: none;
+}
+
+.leaderboard-table tr:hover {
+  background: var(--background);
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.rank-1 {
+  background: var(--mario-yellow);
+  color: var(--text-dark);
+}
+
+.rank-2 {
+  background: #C0C0C0;
+  color: var(--text-dark);
+}
+
+.rank-3 {
+  background: #CD7F32;
+  color: white;
+}
+
+/* Winner Banner */
+.winner-banner {
+  background: linear-gradient(135deg, var(--mario-yellow) 0%, #ffc700 100%);
+  padding: 30px;
+  border-radius: 16px;
+  text-align: center;
+  margin-bottom: 30px;
+  box-shadow: 0 8px 24px rgba(255, 215, 0, 0.3);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.winner-banner h2 {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--text-dark);
+  margin-bottom: 15px;
+  text-shadow: 2px 2px 0px rgba(255, 255, 255, 0.5);
+}
+
+@media (min-width: 768px) {
+  .winner-banner h2 {
+    font-size: 48px;
+  }
+}
+
+.winner-name {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--mario-red);
+  text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.1);
+}
+
+@media (min-width: 768px) {
+  .winner-name {
+    font-size: 56px;
+  }
+}
+
+/* Info Box */
+.info-box {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  padding: 20px;
+  border-radius: 12px;
+  border-left: 5px solid var(--mario-blue);
+  margin-bottom: 20px;
+}
+
+.info-box p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Alert Messages */
+.alert {
+  padding: 16px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.alert-success {
+  background: #d4edda;
+  color: #155724;
+  border: 2px solid #c3e6cb;
+}
+
+.alert-error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 2px solid #f5c6cb;
+}
+
+.alert-warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffeaa7;
+}
+
+.alert-info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 2px solid #bee5eb;
+}
+
+/* Loading Spinner */
+.loading {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--mario-red);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+@media (min-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stat-card {
+  background: var(--background);
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  border: 2px solid var(--border);
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--mario-red);
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+/* Schedule List */
+.schedule-list {
+  list-style: none;
+}
+
+.schedule-item {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 15px;
+}
+
+.schedule-item.completed {
+  background: #f0fff0;
+  border-color: var(--mario-green);
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.race-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--mario-blue);
+}
+
+.opponents-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.opponent-tag {
+  background: var(--mario-blue);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.text-bold {
+  font-weight: 700;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Responsive Table */
+@media (max-width: 767px) {
+  .leaderboard-table {
+    font-size: 14px;
+  }
+  
+  .leaderboard-table th,
+  .leaderboard-table td {
+    padding: 12px 8px;
+  }
+  
+  .hide-mobile {
+    display: none;
+  }
+}
+
+/* Touch Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .btn {
+    min-height: 60px;
+  }
+  
+  .form-input,
+  .form-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Confetti Animation for Winner */
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  background: var(--mario-yellow);
+  position: absolute;
+  animation: confetti-fall 3s linear infinite;
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}

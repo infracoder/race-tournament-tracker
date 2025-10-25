@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mario Kart Tournament - 9 Race Championship</title>
+    <style>
+        @media print {
+            body {
+                margin: 0;
+                padding: 10mm;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+            button {
+                display: none !important;
+            }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            max-width: 8.5in;
+            margin: 0 auto;
+            line-height: 1.4;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #e60012;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-shadow: 2px 2px 0px #ffd700;
+        }
+        
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        
+        h3 {
+            color: #0066cc;
+            margin: 20px 0 10px 0;
+            font-size: 16px;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 5px;
+        }
+        
+        .info-section {
+            background: #f0f8ff;
+            border: 1px solid #0066cc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .points-table {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 10px 0;
+        }
+        
+        .points-table div {
+            text-align: center;
+            padding: 5px 15px;
+            background: #fff;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .points-table .position {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .points-table .points {
+            font-size: 20px;
+            color: #e60012;
+            font-weight: bold;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background: white;
+        }
+        
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        th {
+            background: #333;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .race-schedule th {
+            background: #0066cc;
+        }
+        
+        .race-schedule td {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .scoring-table th {
+            background: #e60012;
+        }
+        
+        .scoring-table .player-name {
+            text-align: left;
+            font-weight: bold;
+            width: 100px;
+        }
+        
+        .scoring-table input {
+            width: 40px;
+            text-align: center;
+            border: 1px solid #ccc;
+            padding: 2px;
+            font-size: 14px;
+        }
+        
+        .total-col {
+            background: #ffffcc;
+            font-weight: bold;
+        }
+        
+        .tiebreaker-cols {
+            background: #f0f0f0;
+            font-size: 12px;
+        }
+        
+        .final-standings {
+            margin-top: 30px;
+        }
+        
+        .final-standings th {
+            background: #ffd700;
+            color: #333;
+        }
+        
+        .final-standings td {
+            height: 30px;
+        }
+        
+        .instructions {
+            background: #fff9e6;
+            border: 1px solid #ffcc00;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+        }
+        
+        button {
+            background: #0066cc;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #0052a3;
+        }
+        
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        @page {
+            size: letter;
+            margin: 0.5in;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏁 MARIO KART TOURNAMENT 🏁</h1>
+    <h2>9 Race Championship - F1 Points System</h2>
+    
+    <div class="info-section">
+        <strong>Tournament Date:</strong> _________________ &nbsp;&nbsp;&nbsp;&nbsp;
+        <strong>Location:</strong> _______________________________
+        
+        <div class="points-table">
+            <div><span class="position">1st Place</span><br><span class="points">25 pts</span></div>
+            <div><span class="position">2nd Place</span><br><span class="points">18 pts</span></div>
+            <div><span class="position">3rd Place</span><br><span class="points">15 pts</span></div>
+            <div><span class="position">4th Place</span><br><span class="points">12 pts</span></div>
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <strong>📋 Instructions:</strong>
+        <ul>
+            <li>Each player races exactly 4 times across 9 total races</li>
+            <li>Write race position (1-4) in each box for participating racers</li>
+            <li>Leave boxes empty if player is not in that race</li>
+            <li>Tiebreaker: Most 1st places → Most 2nd places → Most 3rd places</li>
+            <li>To save as PDF: Press Ctrl+P (or Cmd+P on Mac) → "Save as PDF"</li>
+        </ul>
+    </div>
+    
+    <h3>RACE SCHEDULE</h3>
+    <table class="race-schedule">
+        <tr>
+            <th>Race</th>
+            <th>Racer 1</th>
+            <th>Racer 2</th>
+            <th>Racer 3</th>
+            <th>Racer 4</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>Player A</td>
+            <td>Player B</td>
+            <td>Player C</td>
+            <td>Player D</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Player E</td>
+            <td>Player F</td>
+            <td>Player G</td>
+            <td>Player H</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Player A</td>
+            <td>Player E</td>
+            <td>Player F</td>
+            <td>Player I</td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td>Player B</td>
+            <td>Player C</td>
+            <td>Player G</td>
+            <td>Player I</td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td>Player D</td>
+            <td>Player G</td>
+            <td>Player H</td>
+            <td>Player I</td>
+        </tr>
+        <tr>
+            <td>6</td>
+            <td>Player A</td>
+            <td>Player C</td>
+            <td>Player H</td>
+            <td>Player I</td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Player B</td>
+            <td>Player D</td>
+            <td>Player E</td>
+            <td>Player I</td>
+        </tr>
+        <tr>
+            <td>8</td>
+            <td>Player A</td>
+            <td>Player B</td>
+            <td>Player F</td>
+            <td>Player G</td>
+        </tr>
+        <tr>
+            <td>9</td>
+            <td>Player C</td>
+            <td>Player D</td>
+            <td>Player E</td>
+            <td>Player F</td>
+        </tr>
+    </table>
+    
+    <div class="page-break"></div>
+    
+    <h3>SCORING TRACKER</h3>
+    <p style="margin-bottom: 10px; font-size: 12px;">
+        <strong>Enter positions (1-4) for each race. Points will calculate automatically.</strong>
+    </p>
+    
+    <table class="scoring-table">
+        <tr>
+            <th rowspan="2">Player</th>
+            <th colspan="9">Race Positions</th>
+            <th rowspan="2" class="total-col">Total<br>Points</th>
+            <th colspan="4" class="tiebreaker-cols">Tiebreaker</th>
+        </tr>
+        <tr>
+            <th>R1</th>
+            <th>R2</th>
+            <th>R3</th>
+            <th>R4</th>
+            <th>R5</th>
+            <th>R6</th>
+            <th>R7</th>
+            <th>R8</th>
+            <th>R9</th>
+            <th class="tiebreaker-cols">1st</th>
+            <th class="tiebreaker-cols">2nd</th>
+            <th class="tiebreaker-cols">3rd</th>
+            <th class="tiebreaker-cols">4th</th>
+        </tr>
+        <tr>
+            <td class="player-name">A: _________</td>
+            <td><input type="text" id="A1"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="A3"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="A6"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="A8"></td>
+            <td style="background:#ddd"></td>
+            <td class="total-col" id="totalA">0</td>
+            <td class="tiebreaker-cols" id="firstA">0</td>
+            <td class="tiebreaker-cols" id="secondA">0</td>
+            <td class="tiebreaker-cols" id="thirdA">0</td>
+            <td class="tiebreaker-cols" id="fourthA">0</td>
+        </tr>
+        <tr>
+            <td class="player-name">B: _________</td>
+            <td><input type="text" id="B1"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="B4"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="B7"></td>
+            <td><input type="text" id="B8"></td>
+            <td style="background:#ddd"></td>
+            <td class="total-col" id="totalB">0</td>
+            <td class="tiebreaker-cols" id="firstB">0</td>
+            <td class="tiebreaker-cols" id="secondB">0</td>
+            <td class="tiebreaker-cols" id="thirdB">0</td>
+            <td class="tiebreaker-cols" id="fourthB">0</td>
+        </tr>
+        <tr>
+            <td class="player-name">C: _________</td>
+            <td><input type="text" id="C1"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="C4"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="C6"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="C9"></td>
+            <td class="total-col" id="totalC">0</td>
+            <td class="tiebreaker-cols" id="firstC">0</td>
+            <td class="tiebreaker-cols" id="secondC">0</td>
+            <td class="tiebreaker-cols" id="thirdC">0</td>
+            <td class="tiebreaker-cols" id="fourthC">0</td>
+        </tr>
+        <tr>
+            <td class="player-name">D: _________</td>
+            <td><input type="text" id="D1"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="D5"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="D7"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="D9"></td>
+            <td class="total-col" id="totalD">0</td>
+            <td class="tiebreaker-cols" id="firstD">0</td>
+            <td class="tiebreaker-cols" id="secondD">0</td>
+            <td class="tiebreaker-cols" id="thirdD">0</td>
+            <td class="tiebreaker-cols" id="fourthD">0</td>
+        </tr>
+        <tr>
+            <td class="player-name">E: _________</td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="E2"></td>
+            <td><input type="text" id="E3"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="E7"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="E9"></td>
+            <td class="total-col" id="totalE">0</td>
+            <td class="tiebreaker-cols" id="firstE">0</td>
+            <td class="tiebreaker-cols" id="secondE">0</td>
+            <td class="tiebreaker-cols" id="thirdE">0</td>
+            <td class="tiebreaker-cols" id="fourthE">0</td>
+        </tr>
+        <tr>
+            <td class="player-name">F: _________</td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="F2"></td>
+            <td><input type="text" id="F3"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="F8"></td>
+            <td><input type="text" id="F9"></td>
+            <td class="total-col" id="totalF">0</td>
+            <td class="tiebreaker-cols" id="firstF">0</td>
+            <td class="tiebreaker-cols" id="secondF">0</td>
+            <td class="tiebreaker-cols" id="thirdF">0</td>
+            <td class="tiebreaker-cols" id="fourthF">0</td>
+        </tr>
+        <tr>
+            <td class="player-name">G: _________</td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="G2"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="G4"></td>
+            <td><input type="text" id="G5"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="G8"></td>
+            <td style="background:#ddd"></td>
+            <td class="total-col" id="totalG">0</td>
+            <td class="tiebreaker-cols" id="firstG">0</td>
+            <td class="tiebreaker-cols" id="secondG">0</td>
+            <td class="tiebreaker-cols" id="thirdG">0</td>
+            <td class="tiebreaker-cols" id="fourthG">0</td>
+        </tr>
+        <tr>
+            <td class="player-name">H: _________</td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="H2"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="H5"></td>
+            <td><input type="text" id="H6"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td class="total-col" id="totalH">0</td>
+            <td class="tiebreaker-cols" id="firstH">0</td>
+            <td class="tiebreaker-cols" id="secondH">0</td>
+            <td class="tiebreaker-cols" id="thirdH">0</td>
+            <td class="tiebreaker-cols" id="fourthH">0</td>
+        </tr>
+        <tr>
+            <td class="player-name">I: _________</td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td><input type="text" id="I3"></td>
+            <td><input type="text" id="I4"></td>
+            <td><input type="text" id="I5"></td>
+            <td><input type="text" id="I6"></td>
+            <td><input type="text" id="I7"></td>
+            <td style="background:#ddd"></td>
+            <td style="background:#ddd"></td>
+            <td class="total-col" id="totalI">0</td>
+            <td class="tiebreaker-cols" id="firstI">0</td>
+            <td class="tiebreaker-cols" id="secondI">0</td>
+            <td class="tiebreaker-cols" id="thirdI">0</td>
+            <td class="tiebreaker-cols" id="fourthI">0</td>
+        </tr>
+    </table>
+    
+    <div class="button-container">
+        <button onclick="calculateScores()">Calculate Scores</button>
+        <button onclick="clearAll()">Clear All</button>
+        <button onclick="window.print()">Print / Save as PDF</button>
+    </div>
+    
+    <h3>FINAL STANDINGS</h3>
+    <table class="final-standings">
+        <tr>
+            <th>Position</th>
+            <th>Player Name</th>
+            <th>Total Points</th>
+            <th>Notes</th>
+        </tr>
+        <tr>
+            <td>🥇 1st</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+        <tr>
+            <td>🥈 2nd</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+        <tr>
+            <td>🥉 3rd</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+        <tr>
+            <td>4th</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+        <tr>
+            <td>5th</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+        <tr>
+            <td>6th</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+        <tr>
+            <td>7th</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+        <tr>
+            <td>8th</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+        <tr>
+            <td>9th</td>
+            <td>_____________________</td>
+            <td>_________</td>
+            <td>_____________________</td>
+        </tr>
+    </table>
+    
+    <script>
+        const pointsMap = {
+            '1': 25,
+            '2': 18,
+            '3': 15,
+            '4': 12
+        };
+        
+        function calculateScores() {
+            const players = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+            const races = {
+                'A': [1, 3, 6, 8],
+                'B': [1, 4, 7, 8],
+                'C': [1, 4, 6, 9],
+                'D': [1, 5, 7, 9],
+                'E': [2, 3, 7, 9],
+                'F': [2, 3, 8, 9],
+                'G': [2, 4, 5, 8],
+                'H': [2, 5, 6],
+                'I': [3, 4, 5, 6, 7]
+            };
+            
+            players.forEach(player => {
+                let total = 0;
+                let counts = {1: 0, 2: 0, 3: 0, 4: 0};
+                
+                races[player].forEach(race => {
+                    const input = document.getElementById(player + race);
+                    if (input) {
+                        const position = input.value.trim();
+                        if (position && pointsMap[position]) {
+                            total += pointsMap[position];
+                            counts[position]++;
+                        }
+                    }
+                });
+                
+                document.getElementById('total' + player).textContent = total;
+                document.getElementById('first' + player).textContent = counts[1];
+                document.getElementById('second' + player).textContent = counts[2];
+                document.getElementById('third' + player).textContent = counts[3];
+                document.getElementById('fourth' + player).textContent = counts[4];
+            });
+            
+            alert('Scores calculated! Check the totals and tiebreaker columns.');
+        }
+        
+        function clearAll() {
+            if (confirm('Clear all scores? This cannot be undone.')) {
+                const inputs = document.querySelectorAll('input');
+                inputs.forEach(input => input.value = '');
+                
+                const totals = document.querySelectorAll('[id^="total"], [id^="first"], [id^="second"], [id^="third"], [id^="fourth"]');
+                totals.forEach(element => element.textContent = '0');
+            }
+        }
+        
+        // Auto-calculate on input change
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    if (this.value && !['1', '2', '3', '4'].includes(this.value.trim())) {
+                        alert('Please enter a position between 1 and 4');
+                        this.value = '';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

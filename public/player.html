@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>My Dashboard - Mario Kart Tournament</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>👤 Player Dashboard</h1>
+        <p id="playerInfo">Loading...</p>
+    </div>
+
+    <div class="container">
+        <div id="loadingCard" class="card">
+            <div class="loading-container">
+                <div class="loading"></div>
+            </div>
+        </div>
+
+        <div id="dashboardContent" class="hidden">
+            <!-- Player Stats -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📊 My Stats</h2>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalPoints">0</div>
+                        <div class="stat-label">Total Points</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="racesCompleted">0</div>
+                        <div class="stat-label">Races Done</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="currentRank">-</div>
+                        <div class="stat-label">Current Rank</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="firstPlaces">0</div>
+                        <div class="stat-label">1st Places</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-2 mt-20">
+                    <div class="stat-card">
+                        <div class="stat-label">2nd Places</div>
+                        <div class="stat-value" style="font-size: 24px;" id="secondPlaces">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">3rd Places</div>
+                        <div class="stat-value" style="font-size: 24px;" id="thirdPlaces">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Race Schedule -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📅 My Race Schedule</h2>
+                </div>
+                
+                <ul id="scheduleList" class="schedule-list"></ul>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="grid grid-2">
+                    <a href="/leaderboard.html" class="btn btn-secondary btn-block">
+                        🏆 View Leaderboard
+                    </a>
+                    <a href="/" class="btn btn-secondary btn-block">
+                        🏠 Home
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorCard" class="card hidden">
+            <div class="alert alert-error">
+                <strong>Error:</strong> <span id="errorMessage"></span>
+            </div>
+            <a href="/" class="btn btn-secondary btn-block mt-20">
+                ← Back to Home
+            </a>
+        </div>
+    </div>
+
+    <script>
+        let playerId = null;
+        let refreshInterval = null;
+
+        function getPlayerIdFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        async function loadPlayerData() {
+            playerId = getPlayerIdFromURL();
+
+            if (!playerId) {
+                showError('No player ID provided. Please register first.');
+                return;
+            }
+
+            try {
+                const [scheduleRes, leaderboardRes] = await Promise.all([
+                    fetch(`/api/players/schedule/${playerId}`),
+                    fetch('/api/leaderboard')
+                ]);
+
+                if (!scheduleRes.ok) {
+                    throw new Error('Player not found');
+                }
+
+                const scheduleData = await scheduleRes.json();
+                const leaderboardData = await leaderboardRes.json();
+
+                // Update player info
+                const player = scheduleData.player;
+                const stats = scheduleData.stats;
+                
+                document.getElementById('playerInfo').textContent = 
+                    `${player.name} • Player ${player.letter}`;
+
+                // Update stats
+                document.getElementById('totalPoints').textContent = stats.total_points;
+                document.getElementById('racesCompleted').textContent = 
+                    `${stats.races_completed}/${stats.total_races}`;
+                document.getElementById('firstPlaces').textContent = stats.firsts;
+                document.getElementById('secondPlaces').textContent = stats.seconds;
+                document.getElementById('thirdPlaces').textContent = stats.thirds;
+
+                // Find player rank
+                const playerRank = leaderboardData.standings.find(s => s.id === player.id);
+                document.getElementById('currentRank').textContent = 
+                    playerRank ? `#${playerRank.rank}` : '-';
+
+                // Render schedule
+                renderSchedule(scheduleData.schedule);
+
+                // Show dashboard
+                document.getElementById('loadingCard').classList.add('hidden');
+                document.getElementById('dashboardContent').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error loading player data:', error);
+                showError(error.message || 'Failed to load player data');
+            }
+        }
+
+        function renderSchedule(schedule) {
+            const scheduleList = document.getElementById('scheduleList');
+            
+            if (schedule.length === 0) {
+                scheduleList.innerHTML = `
+                    <div class="alert alert-info">
+                        No races scheduled yet.
+                    </div>
+                `;
+                return;
+            }
+
+            scheduleList.innerHTML = schedule.map(race => {
+                const statusClass = race.completed ? 'completed' : '';
+                const statusBadge = race.completed 
+                    ? '<span class="race-status completed">✓ Complete</span>'
+                    : '<span class="race-status pending">⏳ Pending</span>';
+
+                return `
+                    <li class="schedule-item ${statusClass}">
+                        <div class="schedule-header">
+                            <div class="race-title">🏁 Race ${race.race_number}</div>
+                            ${statusBadge}
+                        </div>
+                        <div class="opponents-list">
+                            ${race.opponents.map(opp => `
+                                <span class="opponent-tag">
+                                    ${opp.letter}: ${opp.name || 'TBD'}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        function showError(message) {
+            document.getElementById('loadingCard').classList.add('hidden');
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorCard').classList.remove('hidden');
+        }
+
+        // Load data on page load
+        loadPlayerData();
+
+        // Refresh every 10 seconds
+        refreshInterval = setInterval(loadPlayerData, 10000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

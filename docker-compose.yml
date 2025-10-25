@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - ORGANIZER_PIN=${ORGANIZER_PIN:-1234}
+      - PORT=3000
+      - DB_FILE=/data/tournament.db
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    container_name: mariokart-tournament

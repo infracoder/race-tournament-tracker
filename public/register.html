@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Register - Mario Kart Tournament</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>📝 Player Registration</h1>
+        <p>Join the Tournament!</p>
+    </div>
+
+    <div class="container">
+        <div id="registrationForm" class="card">
+            <div class="info-box">
+                <p><strong>👋 Welcome!</strong> Enter your name below to register for the tournament. You'll be assigned a player letter (A-I) and receive your race schedule.</p>
+            </div>
+
+            <form id="regForm" onsubmit="registerPlayer(event)">
+                <div class="form-group">
+                    <label for="playerName" class="form-label">Your Name</label>
+                    <input 
+                        type="text" 
+                        id="playerName" 
+                        name="name" 
+                        class="form-input" 
+                        placeholder="Enter your full name" 
+                        required
+                        autocomplete="name"
+                        maxlength="50">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-large btn-block" id="submitBtn">
+                    🏁 Register Now
+                </button>
+            </form>
+
+            <div id="messageBox" class="mt-20 hidden"></div>
+        </div>
+
+        <div id="successCard" class="card hidden">
+            <div class="text-center">
+                <h2 style="font-size: 48px; margin-bottom: 20px;">🎉</h2>
+                <h2 class="card-title text-center mb-20">Registration Successful!</h2>
+                
+                <div class="info-box">
+                    <p><strong>Welcome, <span id="playerNameDisplay"></span>!</strong></p>
+                    <p style="margin-top: 15px; font-size: 24px;">You are <strong>Player <span id="playerLetterDisplay" style="color: #E60012;"></span></strong></p>
+                </div>
+
+                <div class="mt-20">
+                    <a href="#" id="viewScheduleLink" class="btn btn-primary btn-large btn-block">
+                        📅 View My Schedule
+                    </a>
+                </div>
+
+                <div class="mt-20">
+                    <a href="/leaderboard.html" class="btn btn-secondary btn-large btn-block">
+                        🏆 View Leaderboard
+                    </a>
+                </div>
+
+                <div class="mt-20">
+                    <a href="/" class="btn btn-secondary btn-block">
+                        ← Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📊 Registration Status</h2>
+            </div>
+            
+            <div id="statusLoading" class="loading-container">
+                <div class="loading"></div>
+            </div>
+
+            <div id="statusContent" class="hidden">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="registeredCount">0</div>
+                        <div class="stat-label">Registered</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="availableCount">9</div>
+                        <div class="stat-label">Available</div>
+                    </div>
+                </div>
+
+                <div id="playersList" class="mt-20"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let registeredPlayers = [];
+
+        async function registerPlayer(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const name = form.name.value.trim();
+            const submitBtn = document.getElementById('submitBtn');
+            const messageBox = document.getElementById('messageBox');
+
+            if (!name) {
+                showMessage('Please enter your name.', 'error');
+                return;
+            }
+
+            // Disable form
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Registering...';
+            messageBox.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/players/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Show success
+                    document.getElementById('playerNameDisplay').textContent = data.player.name;
+                    document.getElementById('playerLetterDisplay').textContent = data.player.letter;
+                    document.getElementById('viewScheduleLink').href = `/player.html?id=${data.player.id}`;
+                    
+                    document.getElementById('registrationForm').classList.add('hidden');
+                    document.getElementById('successCard').classList.remove('hidden');
+
+                    // Refresh player list
+                    loadRegistrationStatus();
+                } else {
+                    showMessage(data.error || 'Registration failed. Please try again.', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '🏁 Register Now';
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showMessage('Network error. Please check your connection and try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🏁 Register Now';
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.className = `alert alert-${type} mt-20`;
+            messageBox.textContent = message;
+            messageBox.classList.remove('hidden');
+        }
+
+        async function loadRegistrationStatus() {
+            try {
+                const response = await fetch('/api/players');
+                const data = await response.json();
+
+                registeredPlayers = data.players || [];
+
+                document.getElementById('registeredCount').textContent = data.registered || 0;
+                document.getElementById('availableCount').textContent = data.available || 0;
+
+                const playersList = document.getElementById('playersList');
+                
+                if (registeredPlayers.length > 0) {
+                    playersList.innerHTML = `
+                        <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 15px; color: #0066CC;">
+                            🎮 Registered Players
+                        </h3>
+                        <div style="display: grid; gap: 10px;">
+                            ${registeredPlayers.map(p => `
+                                <div class="participant">
+                                    <span class="participant-letter">${p.player_letter}</span>
+                                    <span>${p.name}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    playersList.innerHTML = `
+                        <div class="alert alert-info">
+                            No players registered yet. Be the first to join!
+                        </div>
+                    `;
+                }
+
+                document.getElementById('statusLoading').classList.add('hidden');
+                document.getElementById('statusContent').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error loading status:', error);
+            }
+        }
+
+        // Load status on page load
+        loadRegistrationStatus();
+
+        // Refresh every 5 seconds
+        setInterval(loadRegistrationStatus, 5000);
+    </script>
+</body>
+</html>

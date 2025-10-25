@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Leaderboard - Mario Kart Tournament</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🏆 Tournament Leaderboard</h1>
+        <p>Live Standings</p>
+    </div>
+
+    <div class="container">
+        <!-- Winner Banner (shown when tournament is complete) -->
+        <div id="winnerBanner" class="hidden"></div>
+
+        <!-- Tournament Progress -->
+        <div class="card">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPlayers">0</div>
+                    <div class="stat-label">Players</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="racesCompleted">0</div>
+                    <div class="stat-label">Races Done</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">9</div>
+                    <div class="stat-label">Total Races</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="racesRemaining">9</div>
+                    <div class="stat-label">Remaining</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📊 Current Standings</h2>
+            </div>
+
+            <div id="loadingLeaderboard" class="loading-container">
+                <div class="loading"></div>
+            </div>
+
+            <div id="leaderboardContent" class="hidden leaderboard-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th class="hide-mobile">Letter</th>
+                            <th>Points</th>
+                            <th class="hide-mobile">1st</th>
+                            <th class="hide-mobile">2nd</th>
+                            <th class="hide-mobile">3rd</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardBody"></tbody>
+                </table>
+            </div>
+
+            <div id="noPlayersMessage" class="hidden">
+                <div class="alert alert-info">
+                    No players registered yet. Check back soon!
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Box -->
+        <div class="card">
+            <div class="info-box">
+                <p><strong>📝 Scoring System:</strong></p>
+                <p style="margin-top: 10px;">
+                    1st Place: <strong>25 points</strong> • 
+                    2nd Place: <strong>18 points</strong> • 
+                    3rd Place: <strong>15 points</strong> • 
+                    4th Place: <strong>12 points</strong>
+                </p>
+                <p style="margin-top: 15px;"><strong>🏅 Tiebreakers:</strong></p>
+                <p style="margin-top: 5px;">
+                    Total Points → Most 1st Places → Most 2nd Places → Most 3rd Places
+                </p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="card">
+            <div class="grid grid-2">
+                <a href="/" class="btn btn-secondary btn-block">
+                    🏠 Home
+                </a>
+                <a href="/register.html" class="btn btn-primary btn-block">
+                    📝 Register
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval = null;
+        let confettiInterval = null;
+
+        async function loadLeaderboard() {
+            try {
+                const [leaderboardRes, statusRes, playersRes] = await Promise.all([
+                    fetch('/api/leaderboard'),
+                    fetch('/api/tournament/status'),
+                    fetch('/api/players')
+                ]);
+
+                const leaderboard = await leaderboardRes.json();
+                const status = await statusRes.json();
+                const players = await playersRes.json();
+
+                // Update stats
+                document.getElementById('totalPlayers').textContent = players.registered || 0;
+                document.getElementById('racesCompleted').textContent = status.races_completed || 0;
+                document.getElementById('racesRemaining').textContent = 
+                    (status.total_races || 9) - (status.races_completed || 0);
+
+                // Check for winner
+                if (status.winner) {
+                    showWinnerBanner(status.winner);
+                } else {
+                    document.getElementById('winnerBanner').classList.add('hidden');
+                    stopConfetti();
+                }
+
+                // Render leaderboard
+                if (leaderboard.standings && leaderboard.standings.length > 0) {
+                    renderLeaderboard(leaderboard.standings);
+                    document.getElementById('loadingLeaderboard').classList.add('hidden');
+                    document.getElementById('leaderboardContent').classList.remove('hidden');
+                    document.getElementById('noPlayersMessage').classList.add('hidden');
+                } else {
+                    document.getElementById('loadingLeaderboard').classList.add('hidden');
+                    document.getElementById('leaderboardContent').classList.add('hidden');
+                    document.getElementById('noPlayersMessage').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+            }
+        }
+
+        function renderLeaderboard(standings) {
+            const tbody = document.getElementById('leaderboardBody');
+            
+            tbody.innerHTML = standings.map((player, index) => {
+                let rankDisplay = `<span class="rank-badge">${player.rank}</span>`;
+                
+                if (player.rank === 1) {
+                    rankDisplay = `<span class="rank-badge rank-1">🥇</span>`;
+                } else if (player.rank === 2) {
+                    rankDisplay = `<span class="rank-badge rank-2">🥈</span>`;
+                } else if (player.rank === 3) {
+                    rankDisplay = `<span class="rank-badge rank-3">🥉</span>`;
+                }
+
+                return `
+                    <tr>
+                        <td>${rankDisplay}</td>
+                        <td><strong>${player.name || 'TBD'}</strong></td>
+                        <td class="hide-mobile">${player.player_letter}</td>
+                        <td><strong style="color: #E60012;">${player.total_points}</strong></td>
+                        <td class="hide-mobile">${player.firsts}</td>
+                        <td class="hide-mobile">${player.seconds}</td>
+                        <td class="hide-mobile">${player.thirds}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function showWinnerBanner(winner) {
+            const banner = document.getElementById('winnerBanner');
+            banner.innerHTML = `
+                <div class="winner-banner">
+                    <h2>🏆 TOURNAMENT CHAMPION 🏆</h2>
+                    <div class="winner-name">${winner.name}</div>
+                    <p style="font-size: 20px; margin-top: 15px; font-weight: 700;">
+                        Player ${winner.letter} • ${winner.points || 0} Points
+                    </p>
+                </div>
+            `;
+            banner.classList.remove('hidden');
+            startConfetti();
+        }
+
+        function startConfetti() {
+            if (confettiInterval) return; // Already running
+            
+            confettiInterval = setInterval(() => {
+                createConfetti();
+            }, 300);
+        }
+
+        function stopConfetti() {
+            if (confettiInterval) {
+                clearInterval(confettiInterval);
+                confettiInterval = null;
+            }
+            // Remove existing confetti
+            document.querySelectorAll('.confetti').forEach(c => c.remove());
+        }
+
+        function createConfetti() {
+            const colors = ['#FFD700', '#E60012', '#0066CC', '#00A650', '#FF9900'];
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            confetti.style.width = confetti.style.height = (Math.random() * 10 + 5) + 'px';
+            
+            document.body.appendChild(confetti);
+            
+            setTimeout(() => {
+                confetti.remove();
+            }, 4000);
+        }
+
+        // Load leaderboard on page load
+        loadLeaderboard();
+
+        // Refresh every 5 seconds
+        refreshInterval = setInterval(loadLeaderboard, 5000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            stopConfetti();
+        });
+    </script>
+</body>
+</html>

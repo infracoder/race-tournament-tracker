@@ -1,0 +1,6 @@
+node_modules
+tournament.db
+.env
+data
+*.log
+.DS_Store

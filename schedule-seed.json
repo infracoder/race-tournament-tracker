@@ -1,0 +1,38 @@
+[
+  {
+    "race_number": 1,
+    "letters": ["A", "B", "C", "D"]
+  },
+  {
+    "race_number": 2,
+    "letters": ["E", "F", "G", "H"]
+  },
+  {
+    "race_number": 3,
+    "letters": ["A", "E", "F", "I"]
+  },
+  {
+    "race_number": 4,
+    "letters": ["B", "C", "G", "I"]
+  },
+  {
+    "race_number": 5,
+    "letters": ["D", "E", "H", "I"]
+  },
+  {
+    "race_number": 6,
+    "letters": ["A", "F", "G", "H"]
+  },
+  {
+    "race_number": 7,
+    "letters": ["B", "D", "F", "I"]
+  },
+  {
+    "race_number": 8,
+    "letters": ["A", "C", "E", "H"]
+  },
+  {
+    "race_number": 9,
+    "letters": ["B", "C", "D", "G"]
+  }
+]

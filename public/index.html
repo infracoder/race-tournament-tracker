@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>🏁 Mario Kart Tournament</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🏁 Tolsma 2nd Annual Mario Kart Tournament 🏎️</h1>
+        <p>9 Players • 9 Races • 1 Champion</p>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="info-box">
+                <p><strong>🎮 Welcome to the Mario Kart Tournament!</strong></p>
+                <p style="margin-top: 10px;">Choose your role below to get started. Players can register and track their progress, while the organizer manages race results.</p>
+            </div>
+
+            <div class="grid grid-2">
+                <a href="/register.html" class="btn btn-primary btn-large btn-block">
+                    📝 Register as Player
+                </a>
+                <a href="/organizer.html" class="btn btn-warning btn-large btn-block">
+                    🎮 Organizer Login
+                </a>
+            </div>
+
+            <div class="mt-20">
+                <a href="/leaderboard.html" class="btn btn-secondary btn-large btn-block">
+                    🏆 View Leaderboard
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">ℹ️ Tournament Info</h2>
+            </div>
+            
+            <div id="tournamentStatus" class="loading-container">
+                <div class="loading"></div>
+            </div>
+
+            <div id="statusContent" class="hidden">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalPlayers">0</div>
+                        <div class="stat-label">Players</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="racesCompleted">0</div>
+                        <div class="stat-label">Races Done</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">9</div>
+                        <div class="stat-label">Total Races</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="racesRemaining">9</div>
+                        <div class="stat-label">Remaining</div>
+                    </div>
+                </div>
+
+                <div id="tournamentNotice"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📋 How It Works</h2>
+            </div>
+            <div style="line-height: 1.8;">
+                <p><strong>1. Registration:</strong> Each of the 9 players registers with their name and receives a player letter (A-I).</p>
+                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents across 9 total races.</p>
+                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system - 1st place: 25pts, 2nd: 18pts, 3rd: 15pts, 4th: 12pts.</p>
+                <p class="mt-20"><strong>4. Tiebreakers:</strong> Most 1st places → Most 2nd places → Most 3rd places.</p>
+                <p class="mt-20"><strong>5. Winner:</strong> After all 9 races, the player with the most points wins! 🏆</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch tournament status
+        async function loadTournamentStatus() {
+            try {
+                const [statusRes, playersRes] = await Promise.all([
+                    fetch('/api/tournament/status'),
+                    fetch('/api/players')
+                ]);
+
+                const status = await statusRes.json();
+                const players = await playersRes.json();
+
+                // Update player count
+                document.getElementById('totalPlayers').textContent = players.registered || 0;
+
+                if (status.initialized !== false) {
+                    document.getElementById('racesCompleted').textContent = status.races_completed || 0;
+                    document.getElementById('racesRemaining').textContent = (status.total_races || 9) - (status.races_completed || 0);
+
+                    const noticeDiv = document.getElementById('tournamentNotice');
+                    
+                    if (status.winner) {
+                        noticeDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <strong>🏆 Tournament Complete!</strong><br>
+                                Winner: <strong>${status.winner.name}</strong> (Player ${status.winner.letter})
+                            </div>
+                        `;
+                    } else if (players.available === 0) {
+                        noticeDiv.innerHTML = `
+                            <div class="alert alert-info">
+                                <strong>✅ All 9 players registered!</strong> The tournament is ready to begin.
+                            </div>
+                        `;
+                    } else if (players.registered > 0) {
+                        noticeDiv.innerHTML = `
+                            <div class="alert alert-warning">
+                                <strong>⏳ ${players.available} slots remaining</strong> - Waiting for players to register.
+                            </div>
+                        `;
+                    } else {
+                        noticeDiv.innerHTML = `
+                            <div class="alert alert-info">
+                                <strong>🎮 Tournament initialized!</strong> Players can now register.
+                            </div>
+                        `;
+                    }
+                } else {
+                    document.getElementById('tournamentNotice').innerHTML = `
+                        <div class="alert alert-warning">
+                            <strong>⚠️ Tournament not initialized.</strong> Organizer needs to initialize the tournament first.
+                        </div>
+                    `;
+                }
+
+                document.getElementById('tournamentStatus').classList.add('hidden');
+                document.getElementById('statusContent').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error loading status:', error);
+                document.getElementById('tournamentStatus').innerHTML = `
+                    <div class="alert alert-error">
+                        Unable to load tournament status. Please check your connection.
+                    </div>
+                `;
+            }
+        }
+
+        // Load status on page load
+        loadTournamentStatus();
+
+        // Refresh every 10 seconds
+        setInterval(loadTournamentStatus, 10000);
+    </script>
+</body>
+</html>
