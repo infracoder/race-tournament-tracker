@@ -78,6 +78,19 @@
                 <div id="controlMessage" class="mt-20 hidden"></div>
             </div>
 
+            <!-- Registered Players -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">👥 Registered Players</h2>
+                </div>
+
+                <div id="registeredPlayers">
+                    <div class="loading-container">
+                        <div class="loading"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Live Leaderboard -->
             <div class="card">
                 <div class="card-header">
@@ -207,16 +220,19 @@
 
         async function loadDashboard() {
             try {
-                const [racesRes, leaderboardRes] = await Promise.all([
+                const [racesRes, leaderboardRes, playersRes] = await Promise.all([
                     fetch('/api/races'),
-                    fetch('/api/leaderboard')
+                    fetch('/api/leaderboard'),
+                    fetch('/api/players')
                 ]);
 
                 const racesData = await racesRes.json();
                 const leaderboardData = await leaderboardRes.json();
+                const playersData = await playersRes.json();
 
                 allRaces = racesData.races || [];
 
+                renderRegisteredPlayers(playersData);
                 renderRaces();
                 renderLeaderboard(leaderboardData.standings || []);
             } catch (error) {
@@ -334,11 +350,47 @@
             }
         }
 
+        function renderRegisteredPlayers(playersData) {
+            const container = document.getElementById('registeredPlayers');
+            const players = playersData.players || [];
+            
+            if (players.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <strong>⚠️ No players registered yet.</strong><br>
+                        Share the registration link with players: <code>${window.location.origin}/register.html</code>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${playersData.registered}</div>
+                        <div class="stat-label">Registered</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${playersData.available}</div>
+                        <div class="stat-label">Slots Available</div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: grid; gap: 10px;">
+                    ${players.map(p => `
+                        <div class="participant">
+                            <span class="participant-letter">${p.player_letter}</span>
+                            <span>${p.name}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
         function renderLeaderboard(standings) {
             const container = document.getElementById('miniLeaderboard');
             
             if (standings.length === 0) {
-                container.innerHTML = `<div class="alert alert-info">No results yet.</div>`;
+                container.innerHTML = `<div class="alert alert-info">No race results yet. Standings will appear after races are completed.</div>`;
                 return;
             }
 
