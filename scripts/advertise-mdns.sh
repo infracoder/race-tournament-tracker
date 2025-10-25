@@ -43,7 +43,7 @@ fi
 echo "Advertising '$SERVICE_NAME' as $HOST_LABEL on $IPV4:$PORT ..."
 # Publish proxy records: SRV/TXT + A for mariokart.local
 # TXT record includes a friendly path hint; adjust as needed.
-nohup dns-sd -P "$SERVICE_NAME" "$SERVICE_TYPE" "$DOMAIN" "$HOST_LABEL" "$PORT" "path=/" "$IPV4" >"$LOG_FILE" 2>&1 &
+nohup dns-sd -P "$SERVICE_NAME" "$SERVICE_TYPE" "$DOMAIN" "$PORT" "$HOST_LABEL" "$IPV4" "path=/" >"$LOG_FILE" 2>&1 &
 
 DNS_SD_PID=$!
 echo "$DNS_SD_PID" > "$PID_FILE"
