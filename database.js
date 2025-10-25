@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const path = require('path');
+const { generateSchedule, validateSchedule } = require('./lib/schedule-generator');
 
 const DB_FILE = process.env.DB_FILE || './tournament.db';
 
@@ -64,10 +65,33 @@ async function initializeSchema() {
       id INTEGER PRIMARY KEY CHECK (id = 1),
       status TEXT NOT NULL DEFAULT 'initialized',
       winner_id INTEGER,
+      player_count INTEGER DEFAULT 9,
+      total_races INTEGER DEFAULT 9,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       completed_at TEXT
     )
   `);
+  
+  // Migrate existing tables: add player_count and total_races if missing
+  try {
+    await run('ALTER TABLE tournament ADD COLUMN player_count INTEGER DEFAULT 9');
+    console.log('✅ Added player_count column to tournament table');
+  } catch (err) {
+    // Column already exists, ignore
+    if (!err.message.includes('duplicate column')) {
+      console.warn('⚠️  Could not add player_count column:', err.message);
+    }
+  }
+  
+  try {
+    await run('ALTER TABLE tournament ADD COLUMN total_races INTEGER DEFAULT 9');
+    console.log('✅ Added total_races column to tournament table');
+  } catch (err) {
+    // Column already exists, ignore
+    if (!err.message.includes('duplicate column')) {
+      console.warn('⚠️  Could not add total_races column:', err.message);
+    }
+  }
 
   // Players table
   await run(`
@@ -111,9 +135,90 @@ async function initializeSchema() {
   console.log('✅ Database schema initialized');
 }
 
+/**
+ * Resolve player count from various sources with precedence
+ * Priority: param > config file > env var > default 9
+ */
+function resolvePlayerCount(playerCountParam) {
+  // 1. Explicit function parameter
+  if (playerCountParam !== undefined && playerCountParam !== null) {
+    return playerCountParam;
+  }
+  
+  // 2. Config file
+  try {
+    const configPath = path.join(__dirname, 'config', 'tournament-config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (config.player_count) {
+        console.log(`📄 Using player_count from config file: ${config.player_count}`);
+        return config.player_count;
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️  Could not read config file:', err.message);
+  }
+  
+  // 3. Environment variable
+  if (process.env.PLAYER_COUNT) {
+    const envCount = parseInt(process.env.PLAYER_COUNT, 10);
+    if (!isNaN(envCount)) {
+      console.log(`🌍 Using PLAYER_COUNT from environment: ${envCount}`);
+      return envCount;
+    }
+  }
+  
+  // 4. Default
+  return 9;
+}
+
+/**
+ * Generate letters array based on player count
+ * 8 players: A-H, 9 players: A-I, 10 players: A-J
+ */
+function generateLetters(playerCount) {
+  const letters = [];
+  for (let i = 0; i < playerCount; i++) {
+    letters.push(String.fromCharCode(65 + i)); // A=65
+  }
+  return letters;
+}
+
 // Seed tournament data
-async function seedTournament() {
+async function seedTournament(playerCountParam) {
   console.log('🌱 Seeding tournament data...');
+  
+  // Resolve player count
+  const playerCount = resolvePlayerCount(playerCountParam);
+  
+  // Validate player count
+  if (![8, 9, 10].includes(playerCount)) {
+    throw new Error(`Invalid player count: ${playerCount}. Must be 8, 9, or 10.`);
+  }
+  
+  console.log(`🎮 Configuring tournament for ${playerCount} players`);
+  
+  const totalRaces = playerCount; // 8 players = 8 races, etc.
+  const letters = generateLetters(playerCount);
+  
+  // Generate schedule using algorithm
+  let schedule;
+  try {
+    schedule = generateSchedule(playerCount);
+    console.log(`📋 Generated ${schedule.length} race schedule`);
+  } catch (err) {
+    throw new Error(`Failed to generate schedule: ${err.message}`);
+  }
+  
+  // Validate generated schedule
+  const validation = validateSchedule(schedule, letters);
+  if (!validation.ok) {
+    throw new Error(`Schedule validation failed: ${validation.errors.join(', ')}`);
+  }
+  
+  console.log('✅ Schedule validated successfully');
+  console.log(`   Max pair repeats: ${validation.metrics.maxPairRepeats}`);
+  console.log(`   Max back-to-back: ${validation.metrics.maxBackToBack}`);
   
   await transaction(async () => {
     // Clear existing data
@@ -122,19 +227,18 @@ async function seedTournament() {
     await run('DELETE FROM players');
     await run('DELETE FROM tournament');
     
-    // Create tournament record
-    await run('INSERT INTO tournament (id, status) VALUES (1, ?)' , ['initialized']);
+    // Create tournament record with player_count and total_races
+    await run(
+      'INSERT INTO tournament (id, status, player_count, total_races) VALUES (1, ?, ?, ?)',
+      ['initialized', playerCount, totalRaces]
+    );
     
-    // Create 9 players (A-I) with null names
-    const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+    // Create players with dynamic letters
     for (const letter of letters) {
       await run('INSERT INTO players (player_letter, name) VALUES (?, NULL)', [letter]);
     }
     
-    // Load schedule and create races
-    const scheduleFile = path.join(__dirname, 'schedule-seed.json');
-    const schedule = JSON.parse(fs.readFileSync(scheduleFile, 'utf8'));
-    
+    // Create races from generated schedule
     for (const race of schedule) {
       const playerIds = await Promise.all(
         race.letters.map(letter => 
@@ -163,7 +267,7 @@ async function seedTournament() {
   
   const allCorrect = counts.every(c => c.race_count === 4);
   if (!allCorrect) {
-    throw new Error('❌ Schedule validation failed: Not all players have exactly 4 races!');
+    throw new Error('❌ Post-seed validation failed: Not all players have exactly 4 races!');
   }
   
   console.log('✅ Tournament seeded successfully');
