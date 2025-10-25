@@ -9,6 +9,7 @@ const { router: organizerRouter, requireOrganizer } = require('./routes/organize
 const tournamentRouter = require('./routes/tournament');
 const playersRouter = require('./routes/players');
 const racesRouter = require('./routes/races');
+const { submitRaceResult } = require('./routes/races');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,7 +26,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 // API Routes
 app.use('/api/organizer', organizerRouter);
 app.use('/api/players', playersRouter);
-app.use('/api/races', racesRouter);
 
 // Protected tournament routes
 app.post('/api/tournament/init', requireOrganizer, tournamentRouter);
@@ -33,7 +33,13 @@ app.post('/api/tournament/complete', requireOrganizer, tournamentRouter);
 app.use('/api/tournament', tournamentRouter);
 
 // Protected race result submission
-app.post('/api/race/result', requireOrganizer, racesRouter);
+app.post('/api/race/result', (req, res, next) => {
+  console.log('🎯 Race result endpoint hit!');
+  next();
+}, requireOrganizer, submitRaceResult);
+
+// General races routes (public)
+app.use('/api/races', racesRouter);
 
 // Disable caching for API responses
 app.use((req, res, next) => {

@@ -46,8 +46,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/race/result - Submit race results (protected)
-router.post('/result', async (req, res) => {
+// POST /result - Submit race results (protected)
+async function submitRaceResult(req, res) {
   try {
     const { race_number, placements } = req.body;
     
@@ -137,6 +137,7 @@ router.post('/result', async (req, res) => {
     
     res.status(500).json({ error: 'Failed to submit race result', details: error.message });
   }
-});
+}
 
 module.exports = router;
+module.exports.submitRaceResult = submitRaceResult;

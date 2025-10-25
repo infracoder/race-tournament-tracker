@@ -63,7 +63,7 @@
                 </div>
 
                 <div class="grid grid-2">
-                    <button onclick="initializeTournament()" class="btn btn-warning btn-large btn-block">
+                    <button onclick="initializeTournament()" class="btn btn-warning btn-large btn-block" id="initBtn">
                         🔄 Initialize Tournament
                     </button>
                     <button onclick="completeTournament()" class="btn btn-success btn-large btn-block" id="completeBtn">
@@ -71,8 +71,14 @@
                     </button>
                 </div>
 
+                <div class="mt-20">
+                    <button onclick="resetTournament()" class="btn btn-large btn-block" style="background-color: #d32f2f; color: white;">
+                        ⚠️ Reset Tournament (Delete All Data)
+                    </button>
+                </div>
+
                 <button onclick="logout()" class="btn btn-secondary btn-block mt-20">
-                    🚪 Logout
+                    🚺 Logout
                 </button>
 
                 <div id="controlMessage" class="mt-20 hidden"></div>
@@ -114,7 +120,16 @@
                     <div class="loading"></div>
                 </div>
 
-                <div id="racesContent" class="hidden grid grid-3"></div>
+                <div id="racesContent" class="hidden">
+                    <div class="form-group">
+                        <label for="raceSelect" class="form-label">Select Race to Enter Results</label>
+                        <select id="raceSelect" class="form-select" onchange="selectRace()">
+                            <option value="">-- Select a race --</option>
+                        </select>
+                    </div>
+
+                    <div id="selectedRaceContent"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -179,6 +194,32 @@
             }
         }
 
+        async function resetTournament() {
+            if (!confirm('⚠️ WARNING: This will DELETE ALL tournament data including:\n\n- All registered players\n- All race results\n- Tournament status\n\nThis action CANNOT be undone!\n\nAre you sure you want to reset the tournament?')) return;
+            
+            // Double confirmation
+            if (!confirm('Are you ABSOLUTELY sure? This will erase everything!')) return;
+
+            const messageDiv = document.getElementById('controlMessage');
+            try {
+                const response = await fetch('/api/tournament/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(messageDiv, '✅ Tournament reset successfully! Ready for new players.', 'success');
+                    loadDashboard();
+                } else {
+                    showMessage(messageDiv, data.error || 'Failed to reset tournament', 'error');
+                }
+            } catch (error) {
+                showMessage(messageDiv, 'Network error', 'error');
+            }
+        }
+
         async function initializeTournament() {
             if (!confirm('Initialize tournament? This will reset all data!')) return;
 
@@ -227,83 +268,109 @@
 
         async function loadDashboard() {
             try {
-                const [racesRes, leaderboardRes, playersRes] = await Promise.all([
+                const [racesRes, leaderboardRes, playersRes, statusRes] = await Promise.all([
                     fetch('/api/races'),
                     fetch('/api/players/leaderboard'),
-                    fetch('/api/players')
+                    fetch('/api/players'),
+                    fetch('/api/tournament/status')
                 ]);
 
                 const racesData = await racesRes.json();
                 const leaderboardData = await leaderboardRes.json();
                 const playersData = await playersRes.json();
+                const status = await statusRes.json();
 
                 allRaces = racesData.races || [];
 
                 renderRegisteredPlayers(playersData);
                 renderRaces();
                 renderLeaderboard(leaderboardData.standings || []);
+                
+                // Update button states
+                updateButtonStates(status, playersData);
             } catch (error) {
                 console.error('Error loading dashboard:', error);
             }
         }
 
         function renderRaces() {
-            const content = document.getElementById('racesContent');
+            const select = document.getElementById('raceSelect');
             
-            content.innerHTML = allRaces.map(race => {
-                const isCompleted = race.completed;
-                const statusClass = isCompleted ? 'completed' : '';
-
-                return `
-                    <div class="race-card ${statusClass}">
-                        <div class="race-card-header">
-                            <span class="race-number">Race ${race.race_number}</span>
-                            <span class="race-status ${isCompleted ? 'completed' : 'pending'}">
-                                ${isCompleted ? '✓ Done' : '⏳ Pending'}
-                            </span>
-                        </div>
-
-                        <div class="race-participants">
-                            ${race.participants.map((p, idx) => `
-                                <div class="participant">
-                                    <span class="participant-letter">${p.letter}</span>
-                                    <span>${p.name || 'TBD'}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-
-                        ${!isCompleted ? `
-                            <form onsubmit="submitRaceResult(event, ${race.race_number})" id="raceForm${race.race_number}">
-                                <div style="margin-top: 15px;">
-                                    ${race.participants.map((p, idx) => `
-                                        <div class="form-group">
-                                            <label class="form-label" style="font-size: 16px;">
-                                                <strong style="color: #0066CC;">${p.name || 'Not Registered'}</strong> 
-                                                <span style="color: #666; font-size: 14px;">(Player ${p.letter})</span>
-                                            </label>
-                                            <select class="form-select" name="pos_${p.id}" required ${!p.name ? 'disabled' : ''}>
-                                                <option value="">-- Select Finish Place --</option>
-                                                <option value="1">🥇 1st Place (25 points)</option>
-                                                <option value="2">🥈 2nd Place (18 points)</option>
-                                                <option value="3">🥉 3rd Place (15 points)</option>
-                                                <option value="4">4th Place (12 points)</option>
-                                            </select>
-                                            ${!p.name ? '<small style="color: #E60012;">⚠️ Player not registered yet</small>' : ''}
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                <button type="submit" class="btn btn-success btn-block" ${race.participants.some(p => !p.name) ? 'disabled title="All players must be registered first"' : ''}>
-                                    ✓ Submit Results
-                                </button>
-                                <div class="race-message mt-20 hidden"></div>
-                            </form>
-                        ` : ''}
-                    </div>
-                `;
-            }).join('');
+            // Populate race dropdown
+            select.innerHTML = '<option value="">-- Select a race --</option>' +
+                allRaces.map(race => {
+                    const status = race.completed ? '✓ Completed' : '⏳ Pending';
+                    return `<option value="${race.race_number}">Race ${race.race_number} - ${status}</option>`;
+                }).join('');
 
             document.getElementById('racesLoading').classList.add('hidden');
             document.getElementById('racesContent').classList.remove('hidden');
+        }
+
+        function selectRace() {
+            const raceNumber = parseInt(document.getElementById('raceSelect').value);
+            const contentDiv = document.getElementById('selectedRaceContent');
+            
+            if (!raceNumber) {
+                contentDiv.innerHTML = '';
+                return;
+            }
+
+            const race = allRaces.find(r => r.race_number === raceNumber);
+            if (!race) return;
+
+            const isCompleted = race.completed;
+
+            contentDiv.innerHTML = `
+                <div class="race-card ${isCompleted ? 'completed' : ''}" style="margin-top: 20px;">
+                    <div class="race-card-header">
+                        <span class="race-number">Race ${race.race_number}</span>
+                        <span class="race-status ${isCompleted ? 'completed' : 'pending'}">
+                            ${isCompleted ? '✓ Completed' : '⏳ Pending'}
+                        </span>
+                    </div>
+
+                    <div class="race-participants">
+                        <h3 style="font-size: 16px; margin: 15px 0 10px 0; color: #0066CC;">Racers:</h3>
+                        ${race.participants.map(p => `
+                            <div class="participant">
+                                <span>${p.name || 'Not Registered'}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    ${!isCompleted ? `
+                        <form onsubmit="submitRaceResult(event, ${race.race_number})" id="raceForm${race.race_number}">
+                            <div style="margin-top: 20px;">
+                                <h3 style="font-size: 16px; margin-bottom: 15px; color: #E60012;">Enter Race Results:</h3>
+                                ${race.participants.map(p => `
+                                    <div class="form-group">
+                                        <label class="form-label" style="font-size: 18px;">
+                                            <strong style="color: #0066CC;">${p.name || 'Not Registered'}</strong>
+                                        </label>
+                                        <select class="form-select" name="pos_${p.id}" required ${!p.name ? 'disabled' : ''}>
+                                            <option value="">-- Select Finish Place --</option>
+                                            <option value="1">🥇 1st Place (25 points)</option>
+                                            <option value="2">🥈 2nd Place (18 points)</option>
+                                            <option value="3">🥉 3rd Place (15 points)</option>
+                                            <option value="4">4th Place (12 points)</option>
+                                        </select>
+                                        ${!p.name ? '<small style="color: #E60012;">⚠️ Player not registered yet</small>' : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <button type="submit" class="btn btn-success btn-large btn-block" ${race.participants.some(p => !p.name) ? 'disabled title="All players must be registered first"' : ''}>
+                                ✓ Submit Results for Race ${race.race_number}
+                            </button>
+                            <div class="race-message mt-20 hidden"></div>
+                        </form>
+                    ` : `
+                        <div class="alert alert-success mt-20">
+                            <strong>✓ This race has been completed.</strong>
+                        </div>
+                    `}
+                </div>
+            `;
         }
 
         async function submitRaceResult(event, raceNumber) {
@@ -325,6 +392,12 @@
                 });
             }
 
+            // Validate all positions are selected
+            if (placements.some(p => isNaN(p.position))) {
+                showMessage(messageDiv, 'Please select a position for all players!', 'error');
+                return;
+            }
+            
             // Validate unique positions
             const positions = placements.map(p => p.position);
             if (new Set(positions).size !== 4) {
@@ -346,9 +419,14 @@
 
                 if (response.ok) {
                     showMessage(messageDiv, '✓ Results submitted!', 'success');
+                    submitBtn.textContent = '✓ Success!';
+                    submitBtn.style.backgroundColor = '#00A650';
                     setTimeout(() => {
+                        // Reset the race dropdown and clear selected content
+                        document.getElementById('raceSelect').value = '';
+                        document.getElementById('selectedRaceContent').innerHTML = '';
                         loadDashboard();
-                    }, 1000);
+                    }, 1500);
                 } else {
                     showMessage(messageDiv, data.error || 'Submission failed', 'error');
                     submitBtn.disabled = false;
@@ -389,7 +467,6 @@
                 <div style="margin-top: 20px; display: grid; gap: 10px;">
                     ${players.map(p => `
                         <div class="participant">
-                            <span class="participant-letter">${p.player_letter}</span>
                             <span>${p.name}</span>
                         </div>
                     `).join('')}
@@ -416,7 +493,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${standings.slice(0, 5).map(p => `
+                        ${standings.map(p => `
                             <tr>
                                 <td>${p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : p.rank}</td>
                                 <td><strong>${p.name}</strong></td>
@@ -429,7 +506,33 @@
             `;
         }
 
+        function updateButtonStates(status, playersData) {
+            const initBtn = document.getElementById('initBtn');
+            const completeBtn = document.getElementById('completeBtn');
+            
+            // Disable init button if tournament already has players or races
+            if (playersData.registered > 0 || (status.races_completed && status.races_completed > 0)) {
+                initBtn.disabled = true;
+                initBtn.style.opacity = '0.5';
+                initBtn.title = 'Cannot initialize - tournament has data';
+            } else {
+                initBtn.disabled = false;
+                initBtn.style.opacity = '1';
+                initBtn.title = '';
+            }
+            
+            // Enable complete button only if all races done
+            if (status.races_completed === status.total_races && status.status !== 'completed') {
+                completeBtn.disabled = false;
+                completeBtn.style.opacity = '1';
+            } else {
+                completeBtn.disabled = true;
+                completeBtn.style.opacity = '0.5';
+            }
+        }
+        
         function showMessage(element, message, type) {
+            if (!element) return; // Element no longer exists
             element.className = `alert alert-${type}`;
             element.textContent = message;
             element.classList.remove('hidden');

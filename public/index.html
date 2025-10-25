@@ -9,9 +9,12 @@
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <div class="header">
+    <div class="header" style="position: relative;">
         <h1>🏁 Tolsma 2nd Annual Mario Kart Tournament 🏎️</h1>
         <p>9 Players • 9 Races • 1 Champion</p>
+        <a href="/organizer.html" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none; font-size: 14px;" title="Organizer Login">
+            ⚙️
+        </a>
     </div>
 
     <div class="container">
@@ -22,11 +25,8 @@
             </div>
 
             <div class="grid grid-2">
-                <a href="/register.html" class="btn btn-primary btn-large btn-block">
+                <a href="/register.html" class="btn btn-primary btn-large btn-block" id="registerBtn">
                     📝 Register as Player
-                </a>
-                <a href="/organizer.html" class="btn btn-warning btn-large btn-block">
-                    🎮 Organizer Login
                 </a>
             </div>
 
@@ -131,7 +131,7 @@
                 document.querySelector('#playerLoginForm button').disabled = true;
             } else {
                 select.innerHTML = '<option value="">-- Select your name --</option>' +
-                    allPlayers.map(p => `<option value="${p.id}">${p.name} (Player ${p.player_letter})</option>`).join('');
+                    allPlayers.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
                 select.disabled = false;
                 document.querySelector('#playerLoginForm button').disabled = false;
             }
@@ -153,6 +153,18 @@
 
                 // Update player count
                 document.getElementById('totalPlayers').textContent = players.registered || 0;
+                
+                // Disable register button if all 9 players registered
+                const registerBtn = document.getElementById('registerBtn');
+                if (players.available === 0) {
+                    registerBtn.style.opacity = '0.5';
+                    registerBtn.style.pointerEvents = 'none';
+                    registerBtn.innerHTML = '✓ All Players Registered';
+                } else {
+                    registerBtn.style.opacity = '1';
+                    registerBtn.style.pointerEvents = 'auto';
+                    registerBtn.innerHTML = '📝 Register as Player';
+                }
 
                 if (status.initialized !== false) {
                     document.getElementById('racesCompleted').textContent = status.races_completed || 0;
@@ -164,7 +176,7 @@
                         noticeDiv.innerHTML = `
                             <div class="alert alert-success">
                                 <strong>🏆 Tournament Complete!</strong><br>
-                                Winner: <strong>${status.winner.name}</strong> (Player ${status.winner.letter})
+                                Winner: <strong>${status.winner.name}</strong>
                             </div>
                         `;
                     } else if (players.available === 0) {

@@ -97,7 +97,7 @@
                 <a href="/" class="btn btn-secondary btn-block">
                     🏠 Home
                 </a>
-                <a href="/register.html" class="btn btn-primary btn-block">
+                <a href="/register.html" class="btn btn-primary btn-block" id="registerBtn">
                     📝 Register
                 </a>
             </div>
@@ -125,6 +125,18 @@
                 document.getElementById('racesCompleted').textContent = status.races_completed || 0;
                 document.getElementById('racesRemaining').textContent = 
                     (status.total_races || 9) - (status.races_completed || 0);
+                
+                // Disable register button if all 9 players registered
+                const registerBtn = document.getElementById('registerBtn');
+                if (players.available === 0) {
+                    registerBtn.style.opacity = '0.5';
+                    registerBtn.style.pointerEvents = 'none';
+                    registerBtn.innerHTML = '✓ All Players Registered';
+                } else {
+                    registerBtn.style.opacity = '1';
+                    registerBtn.style.pointerEvents = 'auto';
+                    registerBtn.innerHTML = '📝 Register';
+                }
 
                 // Check for winner
                 if (status.winner) {
@@ -153,7 +165,7 @@
         function renderLeaderboard(standings) {
             const tbody = document.getElementById('leaderboardBody');
             
-            tbody.innerHTML = standings.map((player, index) => {
+            tbody.innerHTML = standings.map((player) => {
                 let rankDisplay = `<span class="rank-badge">${player.rank}</span>`;
                 
                 if (player.rank === 1) {
@@ -185,7 +197,7 @@
                     <h2>🏆 TOURNAMENT CHAMPION 🏆</h2>
                     <div class="winner-name">${winner.name}</div>
                     <p style="font-size: 20px; margin-top: 15px; font-weight: 700;">
-                        Player ${winner.letter} • ${winner.points || 0} Points
+                        ${winner.points || 0} Points
                     </p>
                 </div>
             `;
