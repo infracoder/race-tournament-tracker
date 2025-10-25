@@ -111,7 +111,7 @@
         async function loadLeaderboard() {
             try {
                 const [leaderboardRes, statusRes, playersRes] = await Promise.all([
-                    fetch('/api/leaderboard'),
+                    fetch('/api/players/leaderboard'),
                     fetch('/api/tournament/status'),
                     fetch('/api/players')
                 ]);

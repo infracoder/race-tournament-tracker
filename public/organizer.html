@@ -229,7 +229,7 @@
             try {
                 const [racesRes, leaderboardRes, playersRes] = await Promise.all([
                     fetch('/api/races'),
-                    fetch('/api/leaderboard'),
+                    fetch('/api/players/leaderboard'),
                     fetch('/api/players')
                 ]);
 

@@ -111,7 +111,7 @@
             try {
                 const [scheduleRes, leaderboardRes] = await Promise.all([
                     fetch(`/api/players/schedule/${playerId}`),
-                    fetch('/api/leaderboard')
+                    fetch('/api/players/leaderboard')
                 ]);
 
                 if (!scheduleRes.ok) {
