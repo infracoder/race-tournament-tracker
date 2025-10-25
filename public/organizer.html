@@ -270,18 +270,22 @@
                                 <div style="margin-top: 15px;">
                                     ${race.participants.map((p, idx) => `
                                         <div class="form-group">
-                                            <label class="form-label">${p.letter} - ${p.name || 'TBD'}</label>
-                                            <select class="form-select" name="pos_${p.id}" required>
-                                                <option value="">Select Place</option>
-                                                <option value="1">🥇 1st (25 pts)</option>
-                                                <option value="2">🥈 2nd (18 pts)</option>
-                                                <option value="3">🥉 3rd (15 pts)</option>
-                                                <option value="4">4th (12 pts)</option>
+                                            <label class="form-label" style="font-size: 16px;">
+                                                <strong style="color: #0066CC;">${p.name || 'Not Registered'}</strong> 
+                                                <span style="color: #666; font-size: 14px;">(Player ${p.letter})</span>
+                                            </label>
+                                            <select class="form-select" name="pos_${p.id}" required ${!p.name ? 'disabled' : ''}>
+                                                <option value="">-- Select Finish Place --</option>
+                                                <option value="1">🥇 1st Place (25 points)</option>
+                                                <option value="2">🥈 2nd Place (18 points)</option>
+                                                <option value="3">🥉 3rd Place (15 points)</option>
+                                                <option value="4">4th Place (12 points)</option>
                                             </select>
+                                            ${!p.name ? '<small style="color: #E60012;">⚠️ Player not registered yet</small>' : ''}
                                         </div>
                                     `).join('')}
                                 </div>
-                                <button type="submit" class="btn btn-success btn-block">
+                                <button type="submit" class="btn btn-success btn-block" ${race.participants.some(p => !p.name) ? 'disabled title="All players must be registered first"' : ''}>
                                     ✓ Submit Results
                                 </button>
                                 <div class="race-message mt-20 hidden"></div>
