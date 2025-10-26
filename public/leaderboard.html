@@ -30,11 +30,11 @@
                     <div class="stat-label">Races Done</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">9</div>
+                    <div class="stat-value" id="totalRaces">0</div>
                     <div class="stat-label">Total Races</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" id="racesRemaining">9</div>
+                    <div class="stat-value" id="racesRemaining">0</div>
                     <div class="stat-label">Remaining</div>
                 </div>
             </div>
@@ -121,12 +121,15 @@
                 const players = await playersRes.json();
 
                 // Update stats
+                const totalRaces = status.total_races || 9;
+                
                 document.getElementById('totalPlayers').textContent = players.registered || 0;
+                document.getElementById('totalRaces').textContent = totalRaces;
                 document.getElementById('racesCompleted').textContent = status.races_completed || 0;
                 document.getElementById('racesRemaining').textContent = 
-                    (status.total_races || 9) - (status.races_completed || 0);
+                    totalRaces - (status.races_completed || 0);
                 
-                // Disable register button if all 9 players registered
+                // Disable register button if all players registered
                 const registerBtn = document.getElementById('registerBtn');
                 if (players.available === 0) {
                     registerBtn.style.opacity = '0.5';
