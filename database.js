@@ -55,6 +55,57 @@ const transaction = async (callback) => {
   }
 };
 
+/**
+ * Migrate existing race data from legacy player1_id...player4_id columns
+ * to race_participants junction table
+ */
+async function migrateToJunctionTable() {
+  try {
+    // Check if migration is needed
+    const existingCount = await get('SELECT COUNT(*) as count FROM race_participants');
+    if (existingCount && existingCount.count > 0) {
+      console.log('✅ Junction table migration already completed');
+      return;
+    }
+    
+    // Check if there are any races to migrate
+    const racesCount = await get('SELECT COUNT(*) as count FROM races');
+    if (!racesCount || racesCount.count === 0) {
+      console.log('📊 No races to migrate');
+      return;
+    }
+    
+    console.log('🔄 Migrating legacy race data to junction table...');
+    
+    // Get all races with participant data
+    const races = await all('SELECT race_number, player1_id, player2_id, player3_id, player4_id FROM races');
+    
+    let migratedCount = 0;
+    for (const race of races) {
+      const participants = [
+        { id: race.player1_id, slot: 1 },
+        { id: race.player2_id, slot: 2 },
+        { id: race.player3_id, slot: 3 },
+        { id: race.player4_id, slot: 4 }
+      ].filter(p => p.id !== null && p.id !== undefined);
+      
+      for (const p of participants) {
+        await run(
+          'INSERT OR IGNORE INTO race_participants (race_number, player_id, slot_position) VALUES (?, ?, ?)',
+          [race.race_number, p.id, p.slot]
+        );
+      }
+      
+      migratedCount++;
+    }
+    
+    console.log(`✅ Migrated ${migratedCount} races to junction table`);
+  } catch (err) {
+    console.warn('⚠️  Migration warning:', err.message);
+    // Non-fatal - allow schema initialization to continue
+  }
+}
+
 // Initialize database schema
 async function initializeSchema() {
   console.log('🔧 Initializing database schema...');
@@ -131,6 +182,37 @@ async function initializeSchema() {
       FOREIGN KEY (player_id) REFERENCES players(id)
     )
   `);
+  
+  // Race participants junction table (new flexible schema)
+  await run(`
+    CREATE TABLE IF NOT EXISTS race_participants (
+      race_number INTEGER NOT NULL,
+      player_id INTEGER NOT NULL,
+      slot_position INTEGER NOT NULL,
+      PRIMARY KEY (race_number, player_id),
+      UNIQUE (race_number, slot_position),
+      FOREIGN KEY (race_number) REFERENCES races(race_number) ON DELETE CASCADE,
+      FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+    )
+  `);
+  
+  // Create indexes for performance
+  await run('CREATE INDEX IF NOT EXISTS idx_race_participants_race ON race_participants(race_number)');
+  await run('CREATE INDEX IF NOT EXISTS idx_race_participants_player ON race_participants(player_id)');
+  
+  // Add players_per_race column to tournament table
+  try {
+    await run('ALTER TABLE tournament ADD COLUMN players_per_race INTEGER DEFAULT 4');
+    console.log('✅ Added players_per_race column to tournament table');
+  } catch (err) {
+    // Column already exists, ignore
+    if (!err.message.includes('duplicate column')) {
+      console.warn('⚠️  Could not add players_per_race column:', err.message);
+    }
+  }
+  
+  // Migrate existing race data to junction table if needed
+  await migrateToJunctionTable();
 
   console.log('✅ Database schema initialized');
 }
