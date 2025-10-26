@@ -11,13 +11,24 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Name is required' });
     }
     
+    // Get tournament info for player count
+    const tournament = await get('SELECT player_count FROM tournament WHERE id = 1');
+    const playerCount = tournament?.player_count || 9;
+    
+    // Count registered and total players
+    const playerStats = await get(
+      'SELECT COUNT(*) as total, SUM(CASE WHEN name IS NOT NULL THEN 1 ELSE 0 END) as registered FROM players'
+    );
+    
     // Find next available player slot (where name is NULL)
     const availablePlayer = await get(
       'SELECT id, player_letter FROM players WHERE name IS NULL ORDER BY player_letter LIMIT 1'
     );
     
     if (!availablePlayer) {
-      return res.status(409).json({ error: 'All player slots are full (9/9 registered)' });
+      return res.status(409).json({ 
+        error: `All player slots are full (${playerStats.registered}/${playerCount} registered)` 
+      });
     }
     
     // Update player with name
