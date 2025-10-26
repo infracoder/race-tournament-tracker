@@ -4,7 +4,11 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-A mobile-friendly web application for managing Mario Kart tournaments with **configurable player counts (8-10 players)**, dynamic schedule generation, and F1-style scoring (25/18/15/12 points). Built with Node.js/Express backend, SQLite database, and vanilla JavaScript frontend.
+A mobile-friendly web application for managing Mario Kart tournaments with **configurable player counts (8-10 players)** and **configurable race sizes (2 or 4 players per race)**, dynamic schedule generation, and F1-style scoring. Built with Node.js/Express backend, SQLite database, and vanilla JavaScript frontend.
+
+**Race Modes:**
+- **2-player races:** 25/18 points, 18 total races for 9 players (each races 4 times)
+- **4-player races:** 25/18/15/12 points, 9 total races for 9 players (each races 4 times)
 
 ## Development Commands
 
@@ -54,7 +58,8 @@ cp .env.example .env
 # PORT=3000
 # ORGANIZER_PIN=your_secret_pin
 # DB_FILE=./tournament.db
-# PLAYER_COUNT=9  # Optional: default player count (8, 9, or 10)
+# PLAYER_COUNT=9         # Optional: default player count (8, 9, or 10)
+# PLAYERS_PER_RACE=4     # Optional: players per race (2 or 4, default: 4)
 ```
 
 ## Architecture
@@ -69,26 +74,28 @@ cp .env.example .env
 
 **Database Layer:** `database.js`
 - SQLite3 with promise wrappers (`run`, `get`, `all`, `transaction`)
-- Schema initialization with 4 core tables:
-  - `tournament` - singleton table tracking status, winner, `player_count`, and `total_races`
+- Schema initialization with 5 core tables:
+  - `tournament` - singleton table tracking status, winner, `player_count`, `total_races`, and `players_per_race`
   - `players` - dynamic count (8-10) with letters A-H/I/J and optional names
-  - `races` - dynamic count (8-10) with 4 participants each (references players)
-  - `results` - race placements with position and F1 points
-- `seedTournament(playerCount?)` dynamically generates schedule using algorithm
-- Safe migration: adds `player_count` and `total_races` columns if missing (backward compatible)
+  - `races` - dynamic count based on configuration (9-18 races)
+  - `race_participants` - junction table linking races to players (supports 2 or 4 per race)
+  - `results` - race placements with position and F1 points (dynamic based on `players_per_race`)
+- `seedTournament(playerCount?, playersPerRace?)` dynamically generates schedule
+- Safe migration: migrates legacy `player1_id`..`player4_id` columns to junction table (backward compatible)
 
 **Dynamic Schedule Generator:** `lib/schedule-generator.js`
-- Generates fair racing schedules for 8, 9, or 10 players
-- Each player races exactly 4 times with 4 players per race
-- Algorithm minimizes repeated pairings and back-to-back appearances
-- Deterministic: same player count always produces same schedule
-- Comprehensive validation ensures fairness (max pair repeats ≤3)
+- Generates fair racing schedules for 8, 9, or 10 players with 2 or 4 players per race
+- Each player races exactly 4 times regardless of race size
+- **4-player mode:** Optimized matrix-based algorithm minimizes repeated pairings (max ≤3)
+- **2-player mode:** Greedy pairing algorithm balances participation and minimizes repeats (max ≤2)
+- Deterministic: same configuration always produces same schedule
+- Comprehensive validation ensures fairness for both race modes
 
 **Configuration Priority:**
 1. Request body parameter (organizer UI selection)
 2. Config file (`config/tournament-config.json`)
-3. Environment variable (`PLAYER_COUNT`)
-4. Default (9 players)
+3. Environment variables (`PLAYER_COUNT`, `PLAYERS_PER_RACE`)
+4. Defaults (9 players, 4 per race)
 
 ### API Routes
 
@@ -100,14 +107,16 @@ cp .env.example .env
 
 **Tournament Management:** `routes/tournament.js`
 - `POST /api/tournament/init` - Initialize/reset tournament (protected)
-  - Accepts `player_count` (8-10) in request body
+  - Accepts `player_count` (8-10) and `players_per_race` (2 or 4) in request body
   - Validates and passes to `seedTournament()`
-  - Returns actual `player_count` and `total_races`
+  - Returns actual `player_count`, `players_per_race`, and `total_races`
 - `GET /api/tournament/status` - Get tournament status (public)
-  - Returns `player_count`, `total_races`, `races_completed`, etc.
+  - Returns `player_count`, `players_per_race`, `total_races`, `races_completed`, etc.
 - `POST /api/tournament/complete` - Declare winner after all races (protected)
   - Uses dynamic `total_races` instead of hardcoded 9
-- Winner determined by F1 tiebreaker rules: points → 1sts → 2nds → 3rds → 4ths → letter
+- Winner determined by F1 tiebreaker rules (dynamic based on race mode):
+  - 2-player mode: points → 1sts → 2nds → letter
+  - 4-player mode: points → 1sts → 2nds → 3rds → 4ths → letter
 
 **Player Operations:** `routes/players.js`
 - `POST /api/players/register` - Register player into first available slot (A-H/I/J based on config)
@@ -118,9 +127,9 @@ cp .env.example .env
 - `GET /api/leaderboard` - Real-time standings with tiebreaker sorting
 
 **Race Results:** `routes/races.js`
-- `GET /api/races` - List all races with participants
+- `GET /api/races` - List all races with participants (uses junction table)
 - `POST /api/race/result` - Submit race placements (protected)
-- Validates: correct participants, unique positions 1-4, race not already completed
+- Validates: correct participants, unique positions (dynamic 1-2 or 1-4 based on config), race not completed
 - Atomic transaction inserts results and marks race complete
 
 ### Frontend Pages
@@ -137,6 +146,8 @@ All HTML pages are in `public/`:
 - Auto-refresh every 5-10 seconds for live updates
 - Mobile-first with minimum 54px touch targets
 - Mario Kart themed CSS in `public/css/styles.css`
+- Dynamic UI adapts to 2-player or 4-player race configuration
+- Fetches `players_per_race` from tournament status to render appropriate forms/stats
 
 ## Development Notes
 
@@ -147,40 +158,50 @@ All HTML pages are in `public/`:
 4. Sessions stored in-memory Map (cleared on server restart)
 
 ### Tournament Lifecycle
-1. **Initialize:** Organizer selects player count (8-10) and calls init endpoint → creates N player slots + N races
+1. **Initialize:** Organizer selects player count (8-10) and race size (2 or 4) → creates N player slots + calculated races
 2. **Registration:** Players register → fills player slots (A-H/I/J) with names
-3. **Racing:** Organizer submits results after each race → updates results table
+3. **Racing:** Organizer submits results after each race → updates results and race_participants tables
 4. **Completion:** After all races complete, organizer completes tournament → declares winner
 
-### Testing with Different Player Counts
+### Testing with Different Configurations
 ```bash
-# Test 8-player tournament
-PLAYER_COUNT=8 npm run db:reset
+# Test 2-player races (18 races for 9 players)
+PLAYER_COUNT=9 PLAYERS_PER_RACE=2 npm run db:reset
 npm start
-# Visit organizer.html, init with 8 players, register 8 people (A-H)
 
-# Test 10-player tournament
-PLAYER_COUNT=10 npm run db:reset
+# Test 4-player races (9 races for 9 players, default)
+PLAYER_COUNT=9 PLAYERS_PER_RACE=4 npm run db:reset
 npm start
-# Visit organizer.html, init with 10 players, register 10 people (A-J)
 
-# Test schedule generator
+# Test 10-player, 2-player races (20 races)
+PLAYER_COUNT=10 PLAYERS_PER_RACE=2 npm run db:reset
+npm start
+
+# Test schedule generator (validates both 2-player and 4-player modes)
 npm run test:schedule
-# Validates 8, 9, and 10 player schedules (13 tests)
+# Validates 8, 9, and 10 player schedules for both 2 and 4 player races (22 tests)
 ```
 
 ### Database Transactions
 Use `transaction()` helper for multi-step operations:
-- Race result submission (insert 4 results + mark race complete)
+- Race result submission (insert 2 or 4 results + mark race complete)
 - Tournament initialization (clear + seed all tables)
+- Junction table population (link players to races)
 
 ### Network Access
 Server binds to `0.0.0.0` and displays local IP on startup. Share `http://YOUR_IP:3000` with players on same WiFi network.
 
 ### F1 Scoring System
-Defined in `routes/races.js`:
+Defined dynamically in `routes/races.js` based on `players_per_race`:
 ```javascript
-const POINTS_MAP = {
+// 2-player mode
+const POINTS_MAP_2 = {
+  1: 25,  // 1st place
+  2: 18   // 2nd place
+}
+
+// 4-player mode
+const POINTS_MAP_4 = {
   1: 25,  // 1st place
   2: 18,  // 2nd place
   3: 15,  // 3rd place
