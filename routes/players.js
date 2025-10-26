@@ -91,41 +91,39 @@ router.get('/schedule/:playerId', async (req, res) => {
       return res.status(404).json({ error: 'Player not found' });
     }
     
-    // Get races for this player
-    const races = await all(`
-      SELECT 
-        r.race_number,
-        r.completed,
-        p1.id as p1_id, p1.name as p1_name, p1.player_letter as p1_letter,
-        p2.id as p2_id, p2.name as p2_name, p2.player_letter as p2_letter,
-        p3.id as p3_id, p3.name as p3_name, p3.player_letter as p3_letter,
-        p4.id as p4_id, p4.name as p4_name, p4.player_letter as p4_letter
-      FROM races r
-      JOIN players p1 ON r.player1_id = p1.id
-      JOIN players p2 ON r.player2_id = p2.id
-      JOIN players p3 ON r.player3_id = p3.id
-      JOIN players p4 ON r.player4_id = p4.id
-      WHERE ? IN (r.player1_id, r.player2_id, r.player3_id, r.player4_id)
-      ORDER BY r.race_number
+    // Get races for this player using junction table
+    const raceNumbers = await all(`
+      SELECT DISTINCT race_number
+      FROM race_participants
+      WHERE player_id = ?
+      ORDER BY race_number
     `, [playerId]);
     
     // Format races with opponents
-    const schedule = races.map(race => {
-      const participants = [
-        { id: race.p1_id, name: race.p1_name, letter: race.p1_letter },
-        { id: race.p2_id, name: race.p2_name, letter: race.p2_letter },
-        { id: race.p3_id, name: race.p3_name, letter: race.p3_letter },
-        { id: race.p4_id, name: race.p4_name, letter: race.p4_letter }
-      ];
+    const schedule = [];
+    
+    for (const { race_number } of raceNumbers) {
+      // Get race completion status
+      const raceInfo = await get('SELECT completed FROM races WHERE race_number = ?', [race_number]);
       
+      // Get all participants for this race
+      const participants = await all(`
+        SELECT p.id, p.name, p.player_letter as letter
+        FROM race_participants rp
+        JOIN players p ON rp.player_id = p.id
+        WHERE rp.race_number = ?
+        ORDER BY rp.slot_position
+      `, [race_number]);
+      
+      // Filter out current player to get opponents
       const opponents = participants.filter(p => p.id !== playerId);
       
-      return {
-        race_number: race.race_number,
-        completed: Boolean(race.completed),
+      schedule.push({
+        race_number,
+        completed: Boolean(raceInfo?.completed),
         opponents
-      };
-    });
+      });
+    }
     
     // Get player's current stats
     const stats = await get(`
