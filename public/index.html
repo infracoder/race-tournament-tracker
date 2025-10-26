@@ -11,7 +11,7 @@
 <body>
     <div class="header" style="position: relative;">
         <h1>🏁 Tolsma 2nd Annual Mario Kart Tournament 🏎️</h1>
-        <p>9 Players • 9 Races • 1 Champion</p>
+        <p id="headerSubtitle">Loading tournament info...</p>
         <a href="/organizer.html" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none; font-size: 14px;" title="Organizer Login">
             ⚙️
         </a>
@@ -24,11 +24,9 @@
                 <p style="margin-top: 10px;">Choose your role below to get started. Players can register and track their progress, while the organizer manages race results.</p>
             </div>
 
-            <div class="grid grid-2">
-                <a href="/register.html" class="btn btn-primary btn-large btn-block" id="registerBtn">
-                    📝 Register as Player
-                </a>
-            </div>
+            <a href="/register.html" class="btn btn-primary btn-large btn-block" id="registerBtn">
+                📝 Register as Player
+            </a>
 
             <div class="mt-20">
                 <a href="/leaderboard.html" class="btn btn-secondary btn-large btn-block">
@@ -81,11 +79,11 @@
                         <div class="stat-label">Races Done</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">9</div>
+                        <div class="stat-value" id="totalRaces">0</div>
                         <div class="stat-label">Total Races</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="racesRemaining">9</div>
+                        <div class="stat-value" id="racesRemaining">0</div>
                         <div class="stat-label">Remaining</div>
                     </div>
                 </div>
@@ -98,12 +96,12 @@
             <div class="card-header">
                 <h2 class="card-title">📋 How It Works</h2>
             </div>
-            <div style="line-height: 1.8;">
-                <p><strong>1. Registration:</strong> Each of the 9 players registers with their name and receives a player letter (A-I).</p>
-                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents across 9 total races.</p>
-                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system - 1st place: 25pts, 2nd: 18pts, 3rd: 15pts, 4th: 12pts.</p>
-                <p class="mt-20"><strong>4. Tiebreakers:</strong> Most 1st places → Most 2nd places → Most 3rd places.</p>
-                <p class="mt-20"><strong>5. Winner:</strong> After all 9 races, the player with the most points wins! 🏆</p>
+            <div id="howItWorksContent" style="line-height: 1.8;">
+                <p><strong>1. Registration:</strong> Players register with their name and receive a player letter.</p>
+                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents.</p>
+                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system.</p>
+                <p class="mt-20"><strong>4. Tiebreakers:</strong> Most 1st places → Most 2nd places.</p>
+                <p class="mt-20"><strong>5. Winner:</strong> After all races are complete, the player with the most points wins! 🏆</p>
             </div>
         </div>
     </div>
@@ -137,6 +135,29 @@
             }
         }
 
+        // Update "How It Works" section based on players per race
+        function updateHowItWorks(playersPerRace) {
+            const content = document.getElementById('howItWorksContent');
+            
+            const scoringText = playersPerRace === 2 
+                ? '1st place: 25pts, 2nd: 18pts' 
+                : '1st place: 25pts, 2nd: 18pts, 3rd: 15pts, 4th: 12pts';
+            
+            const tiebreakerText = playersPerRace === 2
+                ? 'Most 1st places → Most 2nd places'
+                : 'Most 1st places → Most 2nd places → Most 3rd places';
+            
+            const racersText = `${playersPerRace} player${playersPerRace > 1 ? 's' : ''} per race`;
+            
+            content.innerHTML = `
+                <p><strong>1. Registration:</strong> Players register with their name and receive a player letter.</p>
+                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents (${racersText}).</p>
+                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system - ${scoringText}.</p>
+                <p class="mt-20"><strong>4. Tiebreakers:</strong> ${tiebreakerText}.</p>
+                <p class="mt-20"><strong>5. Winner:</strong> After all races are complete, the player with the most points wins! 🏆</p>
+            `;
+        }
+
         // Fetch tournament status
         async function loadTournamentStatus() {
             try {
@@ -151,10 +172,19 @@
                 // Populate player dropdown
                 populatePlayerDropdown(players);
 
-                // Update player count
-                document.getElementById('totalPlayers').textContent = players.registered || 0;
+                // Update player count and header
+                const playerCount = status.player_count || 9;
+                const totalRaces = status.total_races || 9;
+                const playersPerRace = status.players_per_race || 4;
                 
-                // Disable register button if all 9 players registered
+                document.getElementById('headerSubtitle').textContent = `${playerCount} Players • ${totalRaces} Races • 1 Champion`;
+                
+                // Update "How It Works" section dynamically
+                updateHowItWorks(playersPerRace);
+                document.getElementById('totalPlayers').textContent = players.registered || 0;
+                document.getElementById('totalRaces').textContent = totalRaces;
+                
+                // Disable register button if all players registered
                 const registerBtn = document.getElementById('registerBtn');
                 if (players.available === 0) {
                     registerBtn.style.opacity = '0.5';
@@ -168,7 +198,7 @@
 
                 if (status.initialized !== false) {
                     document.getElementById('racesCompleted').textContent = status.races_completed || 0;
-                    document.getElementById('racesRemaining').textContent = (status.total_races || 9) - (status.races_completed || 0);
+                    document.getElementById('racesRemaining').textContent = totalRaces - (status.races_completed || 0);
 
                     const noticeDiv = document.getElementById('tournamentNotice');
                     
@@ -182,7 +212,7 @@
                     } else if (players.available === 0) {
                         noticeDiv.innerHTML = `
                             <div class="alert alert-info">
-                                <strong>✅ All 9 players registered!</strong> The tournament is ready to begin.
+                                <strong>✅ All ${playerCount} players registered!</strong> The tournament is ready to begin.
                             </div>
                         `;
                     } else if (players.registered > 0) {
