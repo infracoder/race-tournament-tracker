@@ -96,11 +96,11 @@
             <div class="card-header">
                 <h2 class="card-title">📋 How It Works</h2>
             </div>
-            <div style="line-height: 1.8;">
+            <div id="howItWorksContent" style="line-height: 1.8;">
                 <p><strong>1. Registration:</strong> Players register with their name and receive a player letter.</p>
-                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents (4 players per race).</p>
-                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system - 1st place: 25pts, 2nd: 18pts, 3rd: 15pts, 4th: 12pts.</p>
-                <p class="mt-20"><strong>4. Tiebreakers:</strong> Most 1st places → Most 2nd places → Most 3rd places.</p>
+                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents.</p>
+                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system.</p>
+                <p class="mt-20"><strong>4. Tiebreakers:</strong> Most 1st places → Most 2nd places.</p>
                 <p class="mt-20"><strong>5. Winner:</strong> After all races are complete, the player with the most points wins! 🏆</p>
             </div>
         </div>
@@ -135,6 +135,29 @@
             }
         }
 
+        // Update "How It Works" section based on players per race
+        function updateHowItWorks(playersPerRace) {
+            const content = document.getElementById('howItWorksContent');
+            
+            const scoringText = playersPerRace === 2 
+                ? '1st place: 25pts, 2nd: 18pts' 
+                : '1st place: 25pts, 2nd: 18pts, 3rd: 15pts, 4th: 12pts';
+            
+            const tiebreakerText = playersPerRace === 2
+                ? 'Most 1st places → Most 2nd places'
+                : 'Most 1st places → Most 2nd places → Most 3rd places';
+            
+            const racersText = `${playersPerRace} player${playersPerRace > 1 ? 's' : ''} per race`;
+            
+            content.innerHTML = `
+                <p><strong>1. Registration:</strong> Players register with their name and receive a player letter.</p>
+                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents (${racersText}).</p>
+                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system - ${scoringText}.</p>
+                <p class="mt-20"><strong>4. Tiebreakers:</strong> ${tiebreakerText}.</p>
+                <p class="mt-20"><strong>5. Winner:</strong> After all races are complete, the player with the most points wins! 🏆</p>
+            `;
+        }
+
         // Fetch tournament status
         async function loadTournamentStatus() {
             try {
@@ -152,8 +175,12 @@
                 // Update player count and header
                 const playerCount = status.player_count || 9;
                 const totalRaces = status.total_races || 9;
+                const playersPerRace = status.players_per_race || 4;
                 
                 document.getElementById('headerSubtitle').textContent = `${playerCount} Players • ${totalRaces} Races • 1 Champion`;
+                
+                // Update "How It Works" section dynamically
+                updateHowItWorks(playersPerRace);
                 document.getElementById('totalPlayers').textContent = players.registered || 0;
                 document.getElementById('totalRaces').textContent = totalRaces;
                 

@@ -77,9 +77,14 @@
                     </button>
                 </div>
 
-                <button onclick="logout()" class="btn btn-secondary btn-block mt-20">
-                    🚺 Logout
-                </button>
+                <div class="grid grid-2 mt-20">
+                    <a href="/" class="btn btn-secondary btn-block">
+                        🏠 Home
+                    </a>
+                    <button onclick="logout()" class="btn btn-secondary btn-block">
+                        🚺 Logout
+                    </button>
+                </div>
 
                 <div id="controlMessage" class="mt-20 hidden"></div>
                 
@@ -143,6 +148,7 @@
     <script>
         let refreshInterval = null;
         let allRaces = [];
+        let tournamentConfig = { players_per_race: 4 }; // Cache tournament config
 
         async function login(event) {
             event.preventDefault();
@@ -229,6 +235,7 @@
         async function initializeTournament() {
             // Get player count from localStorage or default to 9
             const lastPlayerCount = localStorage.getItem('mk_player_count') || '9';
+            const lastPlayersPerRace = localStorage.getItem('mk_players_per_race') || '4';
             
             // Prompt for player count
             const playerCountStr = prompt(
@@ -246,17 +253,36 @@
                 return;
             }
             
-            if (!confirm(`Initialize tournament for ${playerCount} players?\n\nThis will reset all data!`)) return;
+            // Prompt for players per race
+            const playersPerRaceStr = prompt(
+                'How many players per race?\n\n2 = Smaller TV screens (good for split-screen)\n4 = Standard (default)\n\nEnter 2 or 4:',
+                lastPlayersPerRace
+            );
             
-            // Save preference
+            if (!playersPerRaceStr) return; // User cancelled
+            
+            const playersPerRace = parseInt(playersPerRaceStr, 10);
+            
+            // Validate
+            if (isNaN(playersPerRace) || ![2, 4].includes(playersPerRace)) {
+                alert('Invalid players per race. Please enter 2 or 4.');
+                return;
+            }
+            
+            const totalRaces = (playerCount * 4) / playersPerRace;
+            
+            if (!confirm(`Initialize tournament:\n\n• ${playerCount} players\n• ${playersPerRace} players per race\n• ${totalRaces} total races\n\nThis will reset all data!`)) return;
+            
+            // Save preferences
             localStorage.setItem('mk_player_count', playerCount.toString());
+            localStorage.setItem('mk_players_per_race', playersPerRace.toString());
 
             const messageDiv = document.getElementById('controlMessage');
             try {
                 const response = await fetch('/api/tournament/init', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ player_count: playerCount })
+                    body: JSON.stringify({ player_count: playerCount, players_per_race: playersPerRace })
                 });
 
                 const data = await response.json();
@@ -310,6 +336,7 @@
                 const status = await statusRes.json();
 
                 allRaces = racesData.races || [];
+                tournamentConfig = { players_per_race: status.players_per_race || 4 }; // Cache config
 
                 renderRegisteredPlayers(playersData);
                 renderRaces();
@@ -335,6 +362,7 @@
             infoDiv.classList.remove('hidden');
             detailsSpan.innerHTML = `
                 🎮 <strong>${status.player_count || 9}</strong> players &nbsp;&nbsp;
+                👥 <strong>${status.players_per_race || 4}</strong> per race &nbsp;&nbsp;
                 🏁 <strong>${status.total_races || 9}</strong> races &nbsp;&nbsp;
                 📊 <strong>${status.races_completed || 0}</strong> completed
             `;
@@ -367,6 +395,17 @@
             if (!race) return;
 
             const isCompleted = race.completed;
+            const playersPerRace = tournamentConfig.players_per_race || 4;
+            
+            // Generate position options based on playersPerRace
+            const getPointsMap = (ppr) => ppr === 2 ? {1: 25, 2: 18} : {1: 25, 2: 18, 3: 15, 4: 12};
+            const pointsMap = getPointsMap(playersPerRace);
+            const positionOptions = [];
+            for (let i = 1; i <= playersPerRace; i++) {
+                const medal = i === 1 ? '🥇' : i === 2 ? '🥈' : i === 3 ? '🥉' : '';
+                const suffix = i === 1 ? 'st' : i === 2 ? 'nd' : i === 3 ? 'rd' : 'th';
+                positionOptions.push(`<option value="${i}">${medal} ${i}${suffix} Place (${pointsMap[i]} points)</option>`);
+            }
 
             contentDiv.innerHTML = `
                 <div class="race-card ${isCompleted ? 'completed' : ''}" style="margin-top: 20px;">
@@ -397,10 +436,7 @@
                                         </label>
                                         <select class="form-select" name="pos_${p.id}" required ${!p.name ? 'disabled' : ''}>
                                             <option value="">-- Select Finish Place --</option>
-                                            <option value="1">🥇 1st Place (25 points)</option>
-                                            <option value="2">🥈 2nd Place (18 points)</option>
-                                            <option value="3">🥉 3rd Place (15 points)</option>
-                                            <option value="4">4th Place (12 points)</option>
+                                            ${positionOptions.join('')}
                                         </select>
                                         ${!p.name ? '<small style="color: #E60012;">⚠️ Player not registered yet</small>' : ''}
                                     </div>
@@ -447,7 +483,8 @@
             
             // Validate unique positions
             const positions = placements.map(p => p.position);
-            if (new Set(positions).size !== 4) {
+            const playersPerRace = tournamentConfig.players_per_race || 4;
+            if (new Set(positions).size !== playersPerRace) {
                 showMessage(messageDiv, 'Each position must be unique!', 'error');
                 return;
             }
