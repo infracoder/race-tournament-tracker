@@ -299,33 +299,45 @@ function generateLetters(playerCount) {
 }
 
 // Seed tournament data
-async function seedTournament(playerCountParam) {
+async function seedTournament(playerCountParam, playersPerRaceParam) {
   console.log('🌱 Seeding tournament data...');
   
-  // Resolve player count
+  // Resolve player count and players per race
   const playerCount = resolvePlayerCount(playerCountParam);
+  const playersPerRace = resolvePlayersPerRace(playersPerRaceParam);
   
   // Validate player count
   if (![8, 9, 10].includes(playerCount)) {
     throw new Error(`Invalid player count: ${playerCount}. Must be 8, 9, or 10.`);
   }
   
-  console.log(`🎮 Configuring tournament for ${playerCount} players`);
+  // Validate players per race
+  if (![2, 4].includes(playersPerRace)) {
+    throw new Error(`Invalid players_per_race: ${playersPerRace}. Must be 2 or 4.`);
+  }
   
-  const totalRaces = playerCount; // 8 players = 8 races, etc.
+  // Calculate total races
+  const totalRaces = (playerCount * 4) / playersPerRace;
+  if (totalRaces !== Math.floor(totalRaces)) {
+    throw new Error(`Invalid configuration: (${playerCount} * 4) / ${playersPerRace} = ${totalRaces} (must be an integer)`);
+  }
+  
+  console.log(`🎮 Configuring tournament for ${playerCount} players, ${playersPerRace} per race`);
+  console.log(`📊 Total races: ${totalRaces}`);
+  
   const letters = generateLetters(playerCount);
   
   // Generate schedule using algorithm
   let schedule;
   try {
-    schedule = generateSchedule(playerCount);
+    schedule = generateSchedule(playerCount, playersPerRace);
     console.log(`📋 Generated ${schedule.length} race schedule`);
   } catch (err) {
     throw new Error(`Failed to generate schedule: ${err.message}`);
   }
   
   // Validate generated schedule
-  const validation = validateSchedule(schedule, letters);
+  const validation = validateSchedule(schedule, letters, playersPerRace);
   if (!validation.ok) {
     throw new Error(`Schedule validation failed: ${validation.errors.join(', ')}`);
   }
@@ -337,14 +349,15 @@ async function seedTournament(playerCountParam) {
   await transaction(async () => {
     // Clear existing data
     await run('DELETE FROM results');
+    await run('DELETE FROM race_participants');
     await run('DELETE FROM races');
     await run('DELETE FROM players');
     await run('DELETE FROM tournament');
     
-    // Create tournament record with player_count and total_races
+    // Create tournament record with player_count, total_races, and players_per_race
     await run(
-      'INSERT INTO tournament (id, status, player_count, total_races) VALUES (1, ?, ?, ?)',
-      ['initialized', playerCount, totalRaces]
+      'INSERT INTO tournament (id, status, player_count, total_races, players_per_race) VALUES (1, ?, ?, ?, ?)',
+      ['initialized', playerCount, totalRaces, playersPerRace]
     );
     
     // Create players with dynamic letters
@@ -354,24 +367,44 @@ async function seedTournament(playerCountParam) {
     
     // Create races from generated schedule
     for (const race of schedule) {
+      // Insert base race record
+      await run('INSERT INTO races (race_number, completed) VALUES (?, 0)', [race.race_number]);
+      
+      // Get player IDs and insert into junction table
       const playerIds = await Promise.all(
         race.letters.map(letter => 
           get('SELECT id FROM players WHERE player_letter = ?', [letter])
         )
       );
       
-      await run(
-        'INSERT INTO races (race_number, player1_id, player2_id, player3_id, player4_id) VALUES (?, ?, ?, ?, ?)',
-        [race.race_number, playerIds[0].id, playerIds[1].id, playerIds[2].id, playerIds[3].id]
-      );
+      // Insert race participants with slot positions
+      for (let i = 0; i < playerIds.length; i++) {
+        await run(
+          'INSERT INTO race_participants (race_number, player_id, slot_position) VALUES (?, ?, ?)',
+          [race.race_number, playerIds[i].id, i + 1]
+        );
+      }
+      
+      // LEGACY: Also populate old player1_id..player4_id columns for backward compat
+      if (playersPerRace === 4) {
+        await run(
+          'UPDATE races SET player1_id = ?, player2_id = ?, player3_id = ?, player4_id = ? WHERE race_number = ?',
+          [playerIds[0].id, playerIds[1].id, playerIds[2].id, playerIds[3].id, race.race_number]
+        );
+      } else if (playersPerRace === 2) {
+        await run(
+          'UPDATE races SET player1_id = ?, player2_id = ? WHERE race_number = ?',
+          [playerIds[0].id, playerIds[1].id, race.race_number]
+        );
+      }
     }
   });
   
-  // Validate participation counts
+  // Validate participation counts using junction table
   const counts = await all(`
     SELECT p.player_letter, COUNT(*) as race_count
     FROM players p
-    JOIN races r ON p.id IN (r.player1_id, r.player2_id, r.player3_id, r.player4_id)
+    JOIN race_participants rp ON p.id = rp.player_id
     GROUP BY p.id, p.player_letter
     ORDER BY p.player_letter
   `);
@@ -385,6 +418,7 @@ async function seedTournament(playerCountParam) {
   }
   
   console.log('✅ Tournament seeded successfully');
+  console.log(`   Configuration: ${playerCount} players, ${playersPerRace} per race, ${totalRaces} total races`);
 }
 
 module.exports = {
