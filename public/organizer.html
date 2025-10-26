@@ -82,6 +82,12 @@
                 </button>
 
                 <div id="controlMessage" class="mt-20 hidden"></div>
+                
+                <!-- Tournament Info -->
+                <div id="tournamentInfo" class="info-box mt-20 hidden">
+                    <strong>Tournament Configuration:</strong><br>
+                    <span id="tournamentDetails"></span>
+                </div>
             </div>
 
             <!-- Registered Players -->
@@ -221,13 +227,36 @@
         }
 
         async function initializeTournament() {
-            if (!confirm('Initialize tournament? This will reset all data!')) return;
+            // Get player count from localStorage or default to 9
+            const lastPlayerCount = localStorage.getItem('mk_player_count') || '9';
+            
+            // Prompt for player count
+            const playerCountStr = prompt(
+                'How many players will participate in the tournament?\n\nEnter 8, 9, or 10:',
+                lastPlayerCount
+            );
+            
+            if (!playerCountStr) return; // User cancelled
+            
+            const playerCount = parseInt(playerCountStr, 10);
+            
+            // Validate
+            if (isNaN(playerCount) || ![8, 9, 10].includes(playerCount)) {
+                alert('Invalid player count. Please enter 8, 9, or 10.');
+                return;
+            }
+            
+            if (!confirm(`Initialize tournament for ${playerCount} players?\n\nThis will reset all data!`)) return;
+            
+            // Save preference
+            localStorage.setItem('mk_player_count', playerCount.toString());
 
             const messageDiv = document.getElementById('controlMessage');
             try {
                 const response = await fetch('/api/tournament/init', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_count: playerCount })
                 });
 
                 const data = await response.json();
@@ -285,12 +314,30 @@
                 renderRegisteredPlayers(playersData);
                 renderRaces();
                 renderLeaderboard(leaderboardData.standings || []);
+                updateTournamentInfo(status);
                 
                 // Update button states
                 updateButtonStates(status, playersData);
             } catch (error) {
                 console.error('Error loading dashboard:', error);
             }
+        }
+        
+        function updateTournamentInfo(status) {
+            const infoDiv = document.getElementById('tournamentInfo');
+            const detailsSpan = document.getElementById('tournamentDetails');
+            
+            if (status.initialized === false) {
+                infoDiv.classList.add('hidden');
+                return;
+            }
+            
+            infoDiv.classList.remove('hidden');
+            detailsSpan.innerHTML = `
+                🎮 <strong>${status.player_count || 9}</strong> players &nbsp;&nbsp;
+                🏁 <strong>${status.total_races || 9}</strong> races &nbsp;&nbsp;
+                📊 <strong>${status.races_completed || 0}</strong> completed
+            `;
         }
 
         function renderRaces() {
