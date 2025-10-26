@@ -136,6 +136,38 @@ async function initializeSchema() {
 }
 
 /**
+ * Resolve players per race from various sources with precedence
+ * Priority: param > env var > default 4
+ * Only allows 2 or 4
+ */
+function resolvePlayersPerRace(playersPerRaceParam) {
+  // 1. Explicit function parameter
+  if (playersPerRaceParam !== undefined && playersPerRaceParam !== null) {
+    const value = parseInt(playersPerRaceParam, 10);
+    if (![2, 4].includes(value)) {
+      throw new Error(`Invalid players_per_race: ${playersPerRaceParam}. Must be 2 or 4.`);
+    }
+    return value;
+  }
+  
+  // 2. Environment variable
+  if (process.env.PLAYERS_PER_RACE) {
+    const envValue = parseInt(process.env.PLAYERS_PER_RACE, 10);
+    if (!isNaN(envValue)) {
+      if (![2, 4].includes(envValue)) {
+        console.warn(`⚠️  Invalid PLAYERS_PER_RACE env var: ${envValue}. Using default 4.`);
+        return 4;
+      }
+      console.log(`🌍 Using PLAYERS_PER_RACE from environment: ${envValue}`);
+      return envValue;
+    }
+  }
+  
+  // 3. Default
+  return 4;
+}
+
+/**
  * Resolve player count from various sources with precedence
  * Priority: param > config file > env var > default 9
  */
