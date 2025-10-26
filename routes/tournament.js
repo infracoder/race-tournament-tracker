@@ -5,7 +5,7 @@ const { run, get, all, seedTournament } = require('../database');
 // POST /api/tournament/init - Initialize/reset tournament (protected)
 router.post('/init', async (req, res) => {
   try {
-    const { player_count } = req.body;
+    const { player_count, players_per_race } = req.body;
     
     // Validate player_count if provided
     if (player_count !== undefined && player_count !== null) {
@@ -18,15 +18,27 @@ router.post('/init', async (req, res) => {
       }
     }
     
-    await seedTournament(player_count);
+    // Validate players_per_race if provided
+    if (players_per_race !== undefined && players_per_race !== null) {
+      const ppr = parseInt(players_per_race, 10);
+      if (isNaN(ppr) || ![2, 4].includes(ppr)) {
+        return res.status(400).json({ 
+          error: 'Invalid players_per_race. Must be 2 or 4.',
+          received: players_per_race
+        });
+      }
+    }
+    
+    await seedTournament(player_count, players_per_race);
     
     // Get the tournament info to return actual values
     const tournament = await get('SELECT * FROM tournament WHERE id = 1');
     
     res.json({ 
       success: true, 
-      message: `Tournament initialized successfully for ${tournament.player_count} players. Ready for player registration.`,
+      message: `Tournament initialized successfully for ${tournament.player_count} players, ${tournament.players_per_race} per race. Ready for player registration.`,
       player_count: tournament.player_count,
+      players_per_race: tournament.players_per_race,
       total_races: tournament.total_races
     });
   } catch (error) {
@@ -57,6 +69,7 @@ router.get('/status', async (req, res) => {
     res.json({
       status: tournament.status,
       player_count: tournament.player_count || 9,
+      players_per_race: tournament.players_per_race || 4,
       total_races: tournament.total_races || 9,
       races_completed: racesCompleted.count,
       winner: winner ? {
