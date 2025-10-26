@@ -76,17 +76,14 @@
 
         <!-- Info Box -->
         <div class="card">
-            <div class="info-box">
+            <div class="info-box" id="infoBox">
                 <p><strong>📝 Scoring System:</strong></p>
-                <p style="margin-top: 10px;">
-                    1st Place: <strong>25 points</strong> • 
-                    2nd Place: <strong>18 points</strong> • 
-                    3rd Place: <strong>15 points</strong> • 
-                    4th Place: <strong>12 points</strong>
+                <p style="margin-top: 10px;" id="scoringText">
+                    Loading...
                 </p>
                 <p style="margin-top: 15px;"><strong>🏅 Tiebreakers:</strong></p>
-                <p style="margin-top: 5px;">
-                    Total Points → Most 1st Places → Most 2nd Places → Most 3rd Places
+                <p style="margin-top: 5px;" id="tiebreakerText">
+                    Total Points → Most 1st Places → Most 2nd Places
                 </p>
             </div>
         </div>
@@ -122,6 +119,10 @@
 
                 // Update stats
                 const totalRaces = status.total_races || 9;
+                const playersPerRace = status.players_per_race || 4;
+                
+                // Update scoring info dynamically
+                updateScoringInfo(playersPerRace);
                 
                 document.getElementById('totalPlayers').textContent = players.registered || 0;
                 document.getElementById('totalRaces').textContent = totalRaces;
@@ -162,6 +163,27 @@
                 }
             } catch (error) {
                 console.error('Error loading leaderboard:', error);
+            }
+        }
+
+        function updateScoringInfo(playersPerRace) {
+            const scoringText = document.getElementById('scoringText');
+            const tiebreakerText = document.getElementById('tiebreakerText');
+            
+            if (playersPerRace === 2) {
+                scoringText.innerHTML = `
+                    1st Place: <strong>25 points</strong> • 
+                    2nd Place: <strong>18 points</strong>
+                `;
+                tiebreakerText.textContent = 'Total Points → Most 1st Places → Most 2nd Places';
+            } else {
+                scoringText.innerHTML = `
+                    1st Place: <strong>25 points</strong> • 
+                    2nd Place: <strong>18 points</strong> • 
+                    3rd Place: <strong>15 points</strong> • 
+                    4th Place: <strong>12 points</strong>
+                `;
+                tiebreakerText.textContent = 'Total Points → Most 1st Places → Most 2nd Places → Most 3rd Places';
             }
         }
 

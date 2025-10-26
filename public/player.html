@@ -47,12 +47,12 @@
                     </div>
                 </div>
 
-                <div class="grid grid-2 mt-20">
+                <div class="grid grid-2 mt-20" id="placeStatsGrid">
                     <div class="stat-card">
                         <div class="stat-label">2nd Places</div>
                         <div class="stat-value" style="font-size: 24px;" id="secondPlaces">0</div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" id="thirdPlaceCard">
                         <div class="stat-label">3rd Places</div>
                         <div class="stat-value" style="font-size: 24px;" id="thirdPlaces">0</div>
                     </div>
@@ -109,9 +109,10 @@
             }
 
             try {
-                const [scheduleRes, leaderboardRes] = await Promise.all([
+                const [scheduleRes, leaderboardRes, statusRes] = await Promise.all([
                     fetch(`/api/players/schedule/${playerId}`),
-                    fetch('/api/players/leaderboard')
+                    fetch('/api/players/leaderboard'),
+                    fetch('/api/tournament/status')
                 ]);
 
                 if (!scheduleRes.ok) {
@@ -120,10 +121,21 @@
 
                 const scheduleData = await scheduleRes.json();
                 const leaderboardData = await leaderboardRes.json();
+                const status = await statusRes.json();
+                const playersPerRace = status.players_per_race || 4;
 
                 // Update player info
                 const player = scheduleData.player;
                 const stats = scheduleData.stats;
+                
+                // Hide 3rd place stats if only 2 players per race
+                if (playersPerRace === 2) {
+                    document.getElementById('thirdPlaceCard').style.display = 'none';
+                    document.getElementById('placeStatsGrid').style.gridTemplateColumns = '1fr';
+                } else {
+                    document.getElementById('thirdPlaceCard').style.display = '';
+                    document.getElementById('placeStatsGrid').style.gridTemplateColumns = '';
+                }
                 
                 document.getElementById('playerInfo').textContent = player.name;
 
