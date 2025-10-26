@@ -5,10 +5,29 @@ const { run, get, all, seedTournament } = require('../database');
 // POST /api/tournament/init - Initialize/reset tournament (protected)
 router.post('/init', async (req, res) => {
   try {
-    await seedTournament();
+    const { player_count } = req.body;
+    
+    // Validate player_count if provided
+    if (player_count !== undefined && player_count !== null) {
+      const count = parseInt(player_count, 10);
+      if (isNaN(count) || ![8, 9, 10].includes(count)) {
+        return res.status(400).json({ 
+          error: 'Invalid player_count. Must be 8, 9, or 10.',
+          received: player_count
+        });
+      }
+    }
+    
+    await seedTournament(player_count);
+    
+    // Get the tournament info to return actual values
+    const tournament = await get('SELECT * FROM tournament WHERE id = 1');
+    
     res.json({ 
       success: true, 
-      message: 'Tournament initialized successfully. Ready for player registration.' 
+      message: `Tournament initialized successfully for ${tournament.player_count} players. Ready for player registration.`,
+      player_count: tournament.player_count,
+      total_races: tournament.total_races
     });
   } catch (error) {
     console.error('Error initializing tournament:', error);
@@ -29,7 +48,6 @@ router.get('/status', async (req, res) => {
     }
     
     const racesCompleted = await get('SELECT COUNT(*) as count FROM races WHERE completed = 1');
-    const totalRaces = 9;
     
     let winner = null;
     if (tournament.winner_id) {
@@ -38,8 +56,9 @@ router.get('/status', async (req, res) => {
     
     res.json({
       status: tournament.status,
+      player_count: tournament.player_count || 9,
+      total_races: tournament.total_races || 9,
       races_completed: racesCompleted.count,
-      total_races: totalRaces,
       winner: winner ? {
         id: winner.id,
         name: winner.name,
