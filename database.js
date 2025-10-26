@@ -2,6 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const path = require('path');
 const { generateSchedule, validateSchedule } = require('./lib/schedule-generator');
+const { pickNonConsecutiveSlots, selectBattlePlayersRandom, pickRandomStage } = require('./lib/battle-distribution');
 
 const DB_FILE = process.env.DB_FILE || './tournament.db';
 
@@ -110,6 +111,9 @@ async function migrateToJunctionTable() {
 async function initializeSchema() {
   console.log('🔧 Initializing database schema...');
   
+  // Enable foreign keys
+  await run('PRAGMA foreign_keys = ON');
+  
   // Tournament table (singleton)
   await run(`
     CREATE TABLE IF NOT EXISTS tournament (
@@ -213,6 +217,37 @@ async function initializeSchema() {
   
   // Migrate existing race data to junction table if needed
   await migrateToJunctionTable();
+  
+  // Add is_battle column to races table
+  try {
+    await run('ALTER TABLE races ADD COLUMN is_battle INTEGER NOT NULL DEFAULT 0');
+    console.log('✅ Added is_battle column to races table');
+  } catch (err) {
+    // Column already exists, ignore
+    if (!err.message.includes('duplicate column')) {
+      console.warn('⚠️  Could not add is_battle column:', err.message);
+    }
+  }
+  
+  // Battle games table
+  await run(`
+    CREATE TABLE IF NOT EXISTS battle_games (
+      race_number INTEGER PRIMARY KEY,
+      stage_name TEXT NOT NULL CHECK (stage_name IN ('Battle Stadium', 'Sweet Sweet Kingdom', 'Dragon Palace', 'Lunar Colony')),
+      player1_id INTEGER NOT NULL,
+      player2_id INTEGER NOT NULL,
+      player3_id INTEGER NOT NULL,
+      player4_id INTEGER NOT NULL,
+      FOREIGN KEY (race_number) REFERENCES races(race_number) ON DELETE CASCADE,
+      FOREIGN KEY (player1_id) REFERENCES players(id),
+      FOREIGN KEY (player2_id) REFERENCES players(id),
+      FOREIGN KEY (player3_id) REFERENCES players(id),
+      FOREIGN KEY (player4_id) REFERENCES players(id)
+    )
+  `);
+  
+  // Create index for battle race lookups
+  await run('CREATE INDEX IF NOT EXISTS idx_races_is_battle ON races(is_battle)');
 
   console.log('✅ Database schema initialized');
 }
@@ -397,6 +432,33 @@ async function seedTournament(playerCountParam, playersPerRaceParam) {
           [playerIds[0].id, playerIds[1].id, race.race_number]
         );
       }
+    }
+    
+    // Generate and insert battle games
+    const battleSlots = pickNonConsecutiveSlots(totalRaces, 3, 2, totalRaces - 1);
+    const allPlayerIds = (await all('SELECT id FROM players ORDER BY id')).map(p => p.id);
+    const battleRosters = selectBattlePlayersRandom(allPlayerIds, 3, 4);
+    
+    console.log(`⚔️  Scheduling ${battleSlots.length} battle games at races: ${battleSlots.join(', ')}`);
+    
+    for (let i = 0; i < battleSlots.length; i++) {
+      const raceNumber = battleSlots[i];
+      const roster = battleRosters[i];
+      const stage = pickRandomStage();
+      
+      // Mark race as battle
+      await run(
+        'UPDATE races SET is_battle = 1 WHERE race_number = ?',
+        [raceNumber]
+      );
+      
+      // Insert battle game details
+      await run(
+        'INSERT INTO battle_games (race_number, stage_name, player1_id, player2_id, player3_id, player4_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [raceNumber, stage, roster[0], roster[1], roster[2], roster[3]]
+      );
+      
+      console.log(`   Battle ${i + 1}: Race ${raceNumber} - ${stage}`);
     }
   });
   
