@@ -9,6 +9,7 @@ const { router: organizerRouter, requireOrganizer } = require('./routes/organize
 const tournamentRouter = require('./routes/tournament');
 const playersRouter = require('./routes/players');
 const racesRouter = require('./routes/races');
+const battleRouter = require('./routes/battle');
 const { submitRaceResult } = require('./routes/races');
 
 const app = express();
@@ -26,6 +27,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // API Routes
 app.use('/api/organizer', organizerRouter);
 app.use('/api/players', playersRouter);
+app.use('/api/battle', battleRouter);
 
 // Protected tournament routes
 app.post('/api/tournament/init', requireOrganizer, tournamentRouter);
