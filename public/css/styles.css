@@ -656,3 +656,251 @@ body {
     opacity: 0;
   }
 }
+
+/* Battle Game Styles */
+
+/* Full-screen modal overlay */
+.battle-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Battle modal content */
+.battle-modal-content {
+  background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+  border-radius: 20px;
+  padding: 40px 30px;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 4px solid var(--mario-yellow);
+  animation: slideUp 0.4s ease;
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 768px) {
+  .battle-modal-content {
+    padding: 50px 40px;
+  }
+}
+
+/* Battle title */
+.battle-title {
+  font-size: 32px;
+  font-weight: 900;
+  color: white;
+  text-shadow: 4px 4px 0px rgba(0, 0, 0, 0.3);
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+@media (min-width: 768px) {
+  .battle-title {
+    font-size: 48px;
+  }
+}
+
+/* Battle stage name */
+.battle-stage {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--mario-yellow);
+  text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.3);
+  margin-bottom: 30px;
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+@media (min-width: 768px) {
+  .battle-stage {
+    font-size: 32px;
+  }
+}
+
+/* Battle subtitle */
+.battle-subtitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 20px;
+  opacity: 0.95;
+}
+
+@media (min-width: 768px) {
+  .battle-subtitle {
+    font-size: 22px;
+  }
+}
+
+/* Battle players list */
+.battle-players {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+@media (min-width: 480px) {
+  .battle-players {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.battle-player {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 15px 10px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--mario-blue);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--mario-yellow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+@media (min-width: 768px) {
+  .battle-player {
+    padding: 20px 15px;
+    font-size: 18px;
+  }
+}
+
+.battle-player-letter {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--mario-red);
+  background: var(--mario-yellow);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--mario-red);
+}
+
+@media (min-width: 768px) {
+  .battle-player-letter {
+    width: 50px;
+    height: 50px;
+    font-size: 28px;
+  }
+}
+
+.battle-player-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+  word-break: break-word;
+}
+
+@media (min-width: 768px) {
+  .battle-player-name {
+    font-size: 16px;
+  }
+}
+
+/* Battle dismiss button */
+.battle-dismiss-btn {
+  background: linear-gradient(135deg, white 0%, #f0f0f0 100%);
+  color: var(--mario-red);
+  font-size: 20px;
+  font-weight: 900;
+  padding: 20px 40px;
+  border: 4px solid var(--mario-red);
+  border-radius: 12px;
+  cursor: pointer;
+  min-height: 60px;
+  width: 100%;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+@media (min-width: 768px) {
+  .battle-dismiss-btn {
+    font-size: 24px;
+    min-height: 70px;
+  }
+}
+
+.battle-dismiss-btn:hover {
+  background: linear-gradient(135deg, #f0f0f0 0%, white 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.battle-dismiss-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Battle race indicator for organizer */
+.race-battle-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+@media (min-width: 768px) {
+  .race-battle-indicator {
+    font-size: 16px;
+    padding: 6px 16px;
+  }
+}
+
+/* Battle race card styling for organizer */
+.race-card.battle-race {
+  border: 3px solid #9b59b6;
+  background: linear-gradient(135deg, #f5f0ff 0%, #fff 100%);
+}
+
+.race-card.battle-race .race-number {
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+}

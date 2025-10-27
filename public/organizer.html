@@ -375,14 +375,15 @@
             select.innerHTML = '<option value="">-- Select a race --</option>' +
                 allRaces.map(race => {
                     const status = race.completed ? '✓ Completed' : '⏳ Pending';
-                    return `<option value="${race.race_number}">Race ${race.race_number} - ${status}</option>`;
+                    const battleIndicator = race.is_battle ? ' ⚔️ BATTLE' : '';
+                    return `<option value="${race.race_number}">Race ${race.race_number}${battleIndicator} - ${status}</option>`;
                 }).join('');
 
             document.getElementById('racesLoading').classList.add('hidden');
             document.getElementById('racesContent').classList.remove('hidden');
         }
 
-        function selectRace() {
+        async function selectRace() {
             const raceNumber = parseInt(document.getElementById('raceSelect').value);
             const contentDiv = document.getElementById('selectedRaceContent');
             
@@ -393,6 +394,12 @@
 
             const race = allRaces.find(r => r.race_number === raceNumber);
             if (!race) return;
+
+            // Handle battle races differently
+            if (race.is_battle) {
+                await renderBattleRace(race, contentDiv);
+                return;
+            }
 
             const isCompleted = race.completed;
             const playersPerRace = tournamentConfig.players_per_race || 4;
@@ -454,6 +461,114 @@
                     `}
                 </div>
             `;
+        }
+
+        async function renderBattleRace(race, contentDiv) {
+            const isCompleted = race.completed;
+            
+            try {
+                // Fetch battle details
+                const response = await fetch(`/api/battle/by-race/${race.race_number}`);
+                
+                if (!response.ok) {
+                    contentDiv.innerHTML = `
+                        <div class="alert alert-error">
+                            <strong>Error:</strong> Could not load battle details.
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const battleData = await response.json();
+                
+                contentDiv.innerHTML = `
+                    <div class="race-card battle-race" style="margin-top: 20px;">
+                        <div class="race-card-header">
+                            <span class="race-number">Race ${race.race_number}</span>
+                            <span class="race-battle-indicator">⚔️ BATTLE GAME</span>
+                            <span class="race-status ${isCompleted ? 'completed' : 'pending'}">
+                                ${isCompleted ? '✓ Completed' : '⏳ Pending'}
+                            </span>
+                        </div>
+                        
+                        <div style="margin: 20px 0; padding: 20px; background: rgba(155, 89, 182, 0.1); border-radius: 12px; border: 2px solid #9b59b6;">
+                            <h3 style="font-size: 20px; margin-bottom: 15px; color: #9b59b6;">🎮 Battle Stage:</h3>
+                            <div style="font-size: 24px; font-weight: 800; color: #8e44ad; margin-bottom: 20px;">
+                                ${battleData.stage_name}
+                            </div>
+                            
+                            <h3 style="font-size: 16px; margin-bottom: 10px; color: #9b59b6;">Selected Warriors:</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                ${battleData.players.map(p => `
+                                    <div class="participant" style="background: rgba(155, 89, 182, 0.1); border-color: #9b59b6;">
+                                        <strong style="color: #8e44ad;">${p.letter}</strong> - ${p.name || 'Not Registered'}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        ${!isCompleted ? `
+                            <div style="margin-top: 20px; padding: 20px; background: #fffbf0; border-radius: 12px; border: 2px solid #ffc700;">
+                                <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                                    ⚠️ <strong>Note:</strong> Battle games do not award points. Mark complete when the battle is finished.
+                                </p>
+                                <button onclick="completeBattle(${race.race_number})" class="btn btn-success btn-large btn-block" ${race.participants.some(p => !p.name) ? 'disabled title="All players must be registered first"' : ''}>
+                                    ✓ Mark Battle ${race.race_number} Complete
+                                </button>
+                                <div id="battleMessage${race.race_number}" class="mt-20 hidden"></div>
+                            </div>
+                        ` : `
+                            <div class="alert alert-success mt-20">
+                                <strong>✓ This battle has been completed.</strong>
+                            </div>
+                        `}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error rendering battle race:', error);
+                contentDiv.innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>Error:</strong> Failed to load battle details.
+                    </div>
+                `;
+            }
+        }
+        
+        async function completeBattle(raceNumber) {
+            const messageDiv = document.getElementById(`battleMessage${raceNumber}`);
+            const btn = event.target;
+            
+            btn.disabled = true;
+            btn.textContent = 'Marking Complete...';
+            
+            try {
+                const response = await fetch('/api/race/result', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ race_number: raceNumber, placements: [] })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage(messageDiv, '✓ Battle marked complete!', 'success');
+                    btn.textContent = '✓ Complete!';
+                    btn.style.backgroundColor = '#00A650';
+                    setTimeout(() => {
+                        document.getElementById('raceSelect').value = '';
+                        document.getElementById('selectedRaceContent').innerHTML = '';
+                        loadDashboard();
+                    }, 1500);
+                } else {
+                    showMessage(messageDiv, data.error || 'Failed to mark battle complete', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '✓ Mark Battle Complete';
+                }
+            } catch (error) {
+                showMessage(messageDiv, 'Network error', 'error');
+                btn.disabled = false;
+                btn.textContent = '✓ Mark Battle Complete';
+            }
         }
 
         async function submitRaceResult(event, raceNumber) {
