@@ -60,6 +60,8 @@ router.get('/status', async (req, res) => {
     }
     
     const racesCompleted = await get('SELECT COUNT(*) as count FROM races WHERE completed = 1');
+    const totalBattles = await get('SELECT COUNT(*) as count FROM races WHERE is_battle = 1');
+    const battlesCompleted = await get('SELECT COUNT(*) as count FROM races WHERE is_battle = 1 AND completed = 1');
     
     let winner = null;
     if (tournament.winner_id) {
@@ -72,6 +74,8 @@ router.get('/status', async (req, res) => {
       players_per_race: tournament.players_per_race || 4,
       total_races: tournament.total_races || 9,
       races_completed: racesCompleted.count,
+      total_battles: totalBattles.count,
+      battles_completed: battlesCompleted.count,
       winner: winner ? {
         id: winner.id,
         name: winner.name,

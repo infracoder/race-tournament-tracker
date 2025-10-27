@@ -17,7 +17,7 @@ function getPointsMap(playersPerRace) {
 router.get('/', async (req, res) => {
   try {
     // Get all races
-    const raceRows = await all('SELECT race_number, completed FROM races ORDER BY race_number');
+    const raceRows = await all('SELECT race_number, completed, is_battle FROM races ORDER BY race_number');
     
     // For each race, get participants from junction table
     const formattedRaces = [];
@@ -34,6 +34,7 @@ router.get('/', async (req, res) => {
       formattedRaces.push({
         race_number: raceRow.race_number,
         completed: Boolean(raceRow.completed),
+        is_battle: Boolean(raceRow.is_battle),
         participants
       });
     }
@@ -81,6 +82,19 @@ async function submitRaceResult(req, res) {
     
     if (race.completed) {
       return res.status(409).json({ error: `Race ${race_number} is already completed` });
+    }
+    
+    // Handle battle games (no points, just mark complete)
+    if (race.is_battle) {
+      await transaction(async () => {
+        await run('UPDATE races SET completed = 1 WHERE race_number = ?', [race_number]);
+      });
+      
+      return res.json({
+        success: true,
+        message: `Battle game ${race_number} marked complete`,
+        is_battle: true
+      });
     }
     
     // Verify placements match race participants (use junction table)
