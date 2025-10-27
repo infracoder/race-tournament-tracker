@@ -4,11 +4,19 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-A mobile-friendly web application for managing Mario Kart tournaments with **configurable player counts (8-10 players)** and **configurable race sizes (2 or 4 players per race)**, dynamic schedule generation, and F1-style scoring. Built with Node.js/Express backend, SQLite database, and vanilla JavaScript frontend.
+A mobile-friendly web application for managing Mario Kart tournaments with **configurable player counts (8-10 players)** and **configurable race sizes (2 or 4 players per race)**, dynamic schedule generation, F1-style scoring, and **bonus battle games**. Built with Node.js/Express backend, SQLite database, and vanilla JavaScript frontend.
 
 **Race Modes:**
 - **2-player races:** 25/18 points, 18 total races for 9 players (each races 4 times)
 - **4-player races:** 25/18/15/12 points, 9 total races for 9 players (each races 4 times)
+
+**Battle Games:**
+- **3 random battle games** appear during tournament (between race 2 and the final race, non-consecutive)
+- **4 battle stages:** Battle Stadium, Sweet Sweet Kingdom, Dragon Palace, Lunar Colony
+- **Random selection:** 4 players selected randomly for each battle (duplicates across battles allowed)
+- **No points awarded:** Battles are for prizes only (external to app tracking)
+- **Full-screen announcement:** All players see battle modal when a battle race becomes active
+- **Organizer marks complete:** No position/point entry required for battles
 
 ## Development Commands
 
@@ -74,14 +82,22 @@ cp .env.example .env
 
 **Database Layer:** `database.js`
 - SQLite3 with promise wrappers (`run`, `get`, `all`, `transaction`)
-- Schema initialization with 5 core tables:
+- Schema initialization with 7 core tables:
   - `tournament` - singleton table tracking status, winner, `player_count`, `total_races`, and `players_per_race`
   - `players` - dynamic count (8-10) with letters A-H/I/J and optional names
-  - `races` - dynamic count based on configuration (9-18 races)
+  - `races` - dynamic count based on configuration (9-18 races), includes `is_battle` flag
   - `race_participants` - junction table linking races to players (supports 2 or 4 per race)
   - `results` - race placements with position and F1 points (dynamic based on `players_per_race`)
-- `seedTournament(playerCount?, playersPerRace?)` dynamically generates schedule
+  - `battle_games` - stores battle race details (race_number, stage_name, 4 player IDs)
+  - Indexes: `idx_races_is_battle` for battle lookups
+- `seedTournament(playerCount?, playersPerRace?)` dynamically generates schedule + 3 battle games
 - Safe migration: migrates legacy `player1_id`..`player4_id` columns to junction table (backward compatible)
+
+**Battle Distribution:** `lib/battle-distribution.js`
+- Generates 3 random non-consecutive battle slots between race 2 and final race
+- Randomly selects 4 unique players per battle (duplicates across battles allowed)
+- Randomly assigns one of 4 battle stages to each battle
+- Retry logic with fallback ensures non-consecutive slots even in edge cases
 
 **Dynamic Schedule Generator:** `lib/schedule-generator.js`
 - Generates fair racing schedules for 8, 9, or 10 players with 2 or 4 players per race
@@ -127,10 +143,21 @@ cp .env.example .env
 - `GET /api/leaderboard` - Real-time standings with tiebreaker sorting
 
 **Race Results:** `routes/races.js`
-- `GET /api/races` - List all races with participants (uses junction table)
+- `GET /api/races` - List all races with participants (uses junction table), includes `is_battle` flag
 - `POST /api/race/result` - Submit race placements (protected)
 - Validates: correct participants, unique positions (dynamic 1-2 or 1-4 based on config), race not completed
+- **Battle handling:** If race is a battle, skip results insertion and only mark complete
 - Atomic transaction inserts results and marks race complete
+
+**Battle Games:** `routes/battle.js`
+- `GET /api/battle/current` - Get currently active battle (next uncompleted battle race)
+  - Returns `{ is_active, race_number, stage_name, players }` if battle is next
+  - Returns `{ is_active: false }` if no battle or next race is regular
+  - Used by player dashboard for polling
+- `GET /api/battle/by-race/:raceNumber` - Get battle details for specific race
+  - Returns battle stage and 4 players
+  - Used by organizer dashboard
+  - Returns 404 if race is not a battle
 
 ### Frontend Pages
 
@@ -148,6 +175,11 @@ All HTML pages are in `public/`:
 - Mario Kart themed CSS in `public/css/styles.css`
 - Dynamic UI adapts to 2-player or 4-player race configuration
 - Fetches `players_per_race` from tournament status to render appropriate forms/stats
+- **Battle modal:** Full-screen overlay on player dashboard polls `/api/battle/current` every 5 seconds
+  - Shows orange/yellow gradient modal with stage name and 4 selected players
+  - Dismissible but reappears on refresh until organizer marks battle complete
+  - No localStorage - relies on in-memory dismissed state
+- **Organizer battle UI:** Purple battle indicators, simplified completion (no positions/points)
 
 ## Development Notes
 
@@ -158,10 +190,13 @@ All HTML pages are in `public/`:
 4. Sessions stored in-memory Map (cleared on server restart)
 
 ### Tournament Lifecycle
-1. **Initialize:** Organizer selects player count (8-10) and race size (2 or 4) → creates N player slots + calculated races
+1. **Initialize:** Organizer selects player count (8-10) and race size (2 or 4) → creates N player slots + calculated races + 3 battle games
 2. **Registration:** Players register → fills player slots (A-H/I/J) with names
 3. **Racing:** Organizer submits results after each race → updates results and race_participants tables
-4. **Completion:** After all races complete, organizer completes tournament → declares winner
+   - **Battle games:** When a battle is the next race, full-screen modal appears on all player dashboards
+   - Organizer marks battle complete without entering positions/points
+   - Tournament progression pauses until battle is marked complete
+4. **Completion:** After all races complete, organizer completes tournament → declares winner (battles don't affect points)
 
 ### Testing with Different Configurations
 ```bash
