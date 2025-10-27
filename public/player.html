@@ -91,9 +91,24 @@
         </div>
     </div>
 
+    <!-- Battle Modal -->
+    <div id="battleModal" class="battle-modal-overlay hidden">
+        <div class="battle-modal-content">
+            <div class="battle-title">🎮 BONUS BATTLE GAME! 🎮</div>
+            <div class="battle-stage" id="battleStageName">Loading...</div>
+            <div class="battle-subtitle">Selected Warriors:</div>
+            <div class="battle-players" id="battlePlayersList"></div>
+            <button class="battle-dismiss-btn" onclick="dismissBattle()">
+                DISMISS
+            </button>
+        </div>
+    </div>
+
     <script>
         let playerId = null;
         let refreshInterval = null;
+        let battleCheckInterval = null;
+        let dismissedBattleRaceNumber = null;
 
         function getPlayerIdFromURL() {
             const params = new URLSearchParams(window.location.search);
@@ -206,16 +221,85 @@
             document.getElementById('errorCard').classList.remove('hidden');
         }
 
+        // Check for active battle games
+        async function checkBattle() {
+            try {
+                const response = await fetch('/api/battle/current', {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (!response.ok) return;
+                
+                const data = await response.json();
+                
+                if (data.is_active && data.race_number !== dismissedBattleRaceNumber) {
+                    showBattleModal(data);
+                } else if (!data.is_active) {
+                    hideBattleModal();
+                }
+            } catch (error) {
+                console.error('Error checking battle:', error);
+            }
+        }
+
+        function showBattleModal(battleData) {
+            const modal = document.getElementById('battleModal');
+            const stageName = document.getElementById('battleStageName');
+            const playersList = document.getElementById('battlePlayersList');
+            
+            // Set stage name
+            stageName.textContent = battleData.stage_name;
+            
+            // Render players
+            playersList.innerHTML = battleData.players.map(player => `
+                <div class="battle-player">
+                    <div class="battle-player-letter">${player.letter}</div>
+                    <div class="battle-player-name">${player.name || 'TBD'}</div>
+                </div>
+            `).join('');
+            
+            // Show modal
+            modal.classList.remove('hidden');
+        }
+
+        function hideBattleModal() {
+            const modal = document.getElementById('battleModal');
+            modal.classList.add('hidden');
+        }
+
+        function dismissBattle() {
+            // Get current battle info to store dismissed race number
+            fetch('/api/battle/current', { cache: 'no-store' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.is_active) {
+                        dismissedBattleRaceNumber = data.race_number;
+                    }
+                    hideBattleModal();
+                })
+                .catch(() => {
+                    hideBattleModal();
+                });
+        }
+
         // Load data on page load
         loadPlayerData();
 
         // Refresh every 10 seconds
         refreshInterval = setInterval(loadPlayerData, 10000);
+        
+        // Check for battles every 5 seconds
+        checkBattle(); // Initial check
+        battleCheckInterval = setInterval(checkBattle, 5000);
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             if (refreshInterval) {
                 clearInterval(refreshInterval);
+            }
+            if (battleCheckInterval) {
+                clearInterval(battleCheckInterval);
             }
         });
     </script>
