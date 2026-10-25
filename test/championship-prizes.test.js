@@ -210,3 +210,68 @@ test('unequal prize ties reject completion atomically while equal amounts allow 
   assert.equal(owned.locked, false);
   assert.equal(owned.award.amount_cents, 1500);
 });
+
+test('playoff placements settle different prizes without changing points and persist in reopened storage', async t => {
+  const { call, database, filename, id, settingsPath, token } = await fixture(t);
+  for (let i = 1; i < 9; i++) await call(`/api/championship/${id}/players`, { name: `Player ${i + 1}`, registrationToken: `playoff-prize-token-${i}` }, { host: false });
+  let current = (await call('/api/championship/current')).body;
+  await call(settingsPath, { expectedRevision: current.revision, enabled: true, currency: 'USD', tiers: { first: 10000, second: 7500, third: 5000, participation: 1500 }, vendors: [{ name: 'Jade' }] }, { method: 'PUT' });
+  current = await finishEvent(call, id, true);
+  const before = current.standings;
+  const completion = { expectedRevision: current.revision, playoffWinnerId: 'C', prizePlayoffs: { 1: ['C', 'A', 'I'] } };
+  const settings = (await call(settingsPath)).body;
+  assert.deepEqual(settings.playoffs.map(({ rank, places, players }) => ({ rank, places, players: players.map(p => p.id) })), [{ rank: 1, places: [1, 2, 3], players: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] }]);
+  assert.equal('playoffs' in current, false);
+  for (const prizePlayoffs of [{ 1: ['C', 'A'] }, { 1: ['C', 'A', 'A'] }, { 1: ['C', 'A', 'Z'] }, { 1: ['A', 'C', 'I'] }, { 1: ['C', 'A', 'I'], 2: ['B'] }, [], null]) {
+    const rejected = await call(`/api/championship/${id}/complete`, { ...completion, prizePlayoffs });
+    assert.ok([400, 409].includes(rejected.status));
+    const unchanged = (await call('/api/championship/current')).body;
+    assert.equal(unchanged.revision, current.revision);
+    assert.equal(unchanged.winner, null);
+    assert.equal((await database.get('SELECT COUNT(*) AS count FROM championship_prize_awards WHERE championship_id = ?', [id])).count, 0);
+  }
+  assert.equal((await call(`/api/championship/${id}/complete`, { ...completion, expectedRevision: current.revision - 1 })).status, 409);
+  assert.equal((await call(`/api/championship/${id}/complete`, completion, { host: false })).status, 401);
+  const completed = await call(`/api/championship/${id}/complete`, completion);
+  assert.equal(completed.status, 200);
+  assert.equal(completed.body.winner.id, 'C');
+  assert.equal(completed.body.championship.winner_source, 'playoff');
+  assert.deepEqual(completed.body.standings, before);
+  const awards = await database.all('SELECT player_id, place, amount_cents, reveal_id FROM championship_prize_awards WHERE championship_id = ? ORDER BY place, player_id', [id]);
+  assert.deepEqual(awards.slice(0, 3).map(({ player_id, place, amount_cents }) => ({ player_id, place, amount_cents })), [
+    { player_id: 'C', place: 1, amount_cents: 10000 },
+    { player_id: 'A', place: 2, amount_cents: 7500 },
+    { player_id: 'I', place: 3, amount_cents: 5000 }
+  ]);
+  assert.ok(awards.slice(3).every(award => award.place === 4 && award.amount_cents === 1500));
+  assert.equal(awards.reduce((sum, award) => sum + award.amount_cents, 0), 31500);
+  const owned = (await call(`/api/championship/${id}/players/A/prize`, undefined, { host: false, token })).body;
+  assert.equal(owned.award.place, 2);
+  assert.equal(owned.award.amount_cents, 7500);
+  const reopened = createDatabase(filename);
+  try {
+    await reopened.initializeSchema();
+    assert.deepEqual(await reopened.all('SELECT player_id, place, amount_cents, reveal_id FROM championship_prize_awards WHERE championship_id = ? ORDER BY place, player_id', [id]), awards);
+  } finally { await reopened.close(); }
+  const replay = await call(`/api/championship/${id}/complete`, { ...completion, expectedRevision: completed.body.revision, prizePlayoffs: { 1: ['I', 'C', 'A'] } });
+  assert.equal(replay.body.revision, completed.body.revision);
+  assert.deepEqual(await database.all('SELECT player_id, place, amount_cents, reveal_id FROM championship_prize_awards WHERE championship_id = ? ORDER BY place, player_id', [id]), awards);
+});
+
+test('a playoff below the leader changes only the tied prize places', async t => {
+  const { database, id } = await fixture(t);
+  const { prizePlayoffGroups, writePrizeAwards } = require('../lib/championship-prizes');
+  const standings = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map((id, index) => ({ id, name: id, total_units: [3600, 2400, 2400, 2400, 1200, 1200, 600, 600, 600][index] }));
+  const settings = { enabled: true, currency: 'USD', tiers: { first: 10000, second: 7500, third: 5000, participation: 1500 } };
+  assert.deepEqual(prizePlayoffGroups(standings, settings), [{ rank: 2, places: [2, 3], players: [{ id: 'B', name: 'B' }, { id: 'C', name: 'C' }, { id: 'D', name: 'D' }] }]);
+  await assert.rejects(database.transaction(tx => writePrizeAwards(tx, id, standings, settings, { 2: ['A', 'B'] }, 'A')), /tied group/);
+  await database.transaction(tx => writePrizeAwards(tx, id, standings, settings, { 2: ['D', 'B'] }, 'A'));
+  const awards = await database.all('SELECT player_id, place, amount_cents FROM championship_prize_awards WHERE championship_id = ? ORDER BY place, player_id', [id]);
+  assert.deepEqual(awards.slice(0, 4), [
+    { player_id: 'A', place: 1, amount_cents: 10000 },
+    { player_id: 'D', place: 2, amount_cents: 7500 },
+    { player_id: 'B', place: 3, amount_cents: 5000 },
+    { player_id: 'C', place: 4, amount_cents: 1500 }
+  ]);
+  assert.deepEqual(awards.slice(4).map(a => a.place), [5, 5, 7, 7, 7]);
+});

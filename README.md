@@ -75,7 +75,9 @@ After you complete the tournament, each player opens **My private prize** from t
 
 The original registration phone provides private access automatically. For another device, select the player under **Help a player open their prize** and give them their private link. Treat that link as private: anyone holding it can view that player's prize. Selecting a public dashboard name alone does not grant access.
 
-Correcting completed results or changing prize settings/artwork seals the reveal and clears vendor choices. Complete the tournament again to assign the revised prizes. Old vendor submissions cannot apply to a new reveal. Exact point ties that would receive different prize amounts currently block prize completion until their resolution rule is settled.
+If equal points span different prize amounts, run playoffs and record the required finishing places in host controls before completing the tournament. First place uses the same playoff winner as the championship; lower tied groups have their own selectors. Players tied on equal prizes need no extra playoff. Points and public shared ranks stay unchanged; each private prize shows its settled finishing place. Only the places needed to distinguish amounts require a selection, so a nine-player tie with the default tiers needs the top three finishers.
+
+Correcting completed results or changing prize settings/artwork seals the reveal and clears vendor choices. Complete the tournament again to assign the revised prizes and record fresh playoff placements when required. Old vendor submissions cannot apply to a new reveal.
 
 ## Persistence and older tournaments
 
