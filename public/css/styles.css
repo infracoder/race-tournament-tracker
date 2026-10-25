@@ -995,6 +995,12 @@ input::placeholder {
   min-height: 42px;
   padding: 12px 16px;
 }
+#editorEvent {
+  margin-bottom: 24px;
+}
+#eventWaiting {
+  line-height: 1.6;
+}
 .result-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 130px;
