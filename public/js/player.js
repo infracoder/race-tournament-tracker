@@ -70,7 +70,7 @@ function render(value) {
   expectedEvent = state.championship.id;
   rememberPlayer(expectedEvent, player.id);
   checkPlayerAccess(expectedEvent, player);
-  $('#withdrawalPanel').hidden = !ownsPlayer || Boolean(player.withdrawn_at) || state.championship.status === 'completed';
+  $('#withdrawalPanel').hidden = !ownsPlayer || Boolean(player.withdrawn_at) || Boolean(state.championship.first_completed_at) || state.championship.status === 'completed';
   $('#withdrawTournament').disabled = busy;
   message($('#withdrawalStatus'), player.withdrawn_at
     ? state.championship.status === 'completed'
@@ -149,7 +149,7 @@ const client = mount(render);
 $('#withdrawTournament').addEventListener('click', async () => {
   const id = state?.championship?.id;
   const player = state?.players.find((p) => p.id === chosen);
-  if (busy || !ownsPlayer || !player || player.withdrawn_at || state.championship.status === 'completed') return;
+  if (busy || !ownsPlayer || !player || player.withdrawn_at || state.championship.first_completed_at || state.championship.status === 'completed') return;
   if (!confirm('Withdraw from this tournament? You cannot rejoin this event. Your remaining seats will stay empty, and you will receive a consolation prize instead of a placement prize when the host completes the tournament.')) return;
   const expectedRevision = state.revision;
   busy = true;

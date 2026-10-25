@@ -195,6 +195,7 @@ test('unequal prize ties reject completion atomically while equal amounts allow 
   const unchanged = (await call('/api/championship/current')).body;
   assert.equal(unchanged.revision, current.revision);
   assert.equal(unchanged.championship.status, 'awaiting_champion');
+  assert.equal(unchanged.championship.first_completed_at, null);
   assert.equal(unchanged.winner, null);
   assert.equal((await database.get('SELECT COUNT(*) AS count FROM championship_prize_awards WHERE championship_id = ?', [id])).count, 0);
   const settings = (await call(settingsPath)).body;
