@@ -109,6 +109,15 @@
               <label for="playoffWinner">Playoff winner</label
               ><select id="playoffWinner"></select>
             </div>
+            <div id="prizePlayoffPanel" class="section-gap" hidden>
+              <h3>Settle tied prize places</h3>
+              <p class="muted">
+                Run playoffs for the tied players, with up to four playing at a time. Record the final
+                order below. Tournament points stay the same; equal prizes need no extra playoff.
+              </p>
+              <div id="prizePlayoffFields"></div>
+            </div>
+            <p id="prizePlayoffStatus" class="notice" hidden></p>
             <button id="completeTournament" class="btn primary">
               Complete tournament & reveal champion →
             </button>

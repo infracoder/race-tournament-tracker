@@ -20,9 +20,11 @@ let authenticationVersion = 0;
 let busy = false;
 let draft = null;
 let correctionId = null;
+let playoffRevision = null;
 const prizeAdmin = createPrizeAdmin({
   run: perform,
   applyState: (next) => client.apply(next),
+  onChange: () => renderFinish(),
   onAuthLost: () => {
     setAuthenticated(false);
     message(
@@ -276,17 +278,73 @@ function render() {
     select.dataset.rounds = key;
   }
   $('#editCorrection').disabled = busy || !select.value;
+  renderFinish();
+}
+
+function renderFinish() {
+  if (!state?.initialized || !authenticated) return;
+  const c = state.championship;
+  const fields = $('#prizePlayoffFields');
+  const key = `${c.id}:${state.revision}`;
+  if (playoffRevision !== key) {
+    playoffRevision = key;
+    $('#playoffWinner').value = '';
+    fields.replaceChildren();
+    fields.dataset.groups = '';
+  }
   $('#finishPanel').hidden = c.status !== 'awaiting_champion';
+  if (c.status !== 'awaiting_champion') return;
+  const completion = prizeAdmin.completion();
   const leaders = state.standings.filter((p) => p.rank === 1);
   const tied = leaders.length > 1;
   $('#playoffPicker').hidden = !tied;
   fillPlayerSelect($('#playoffWinner'), leaders, 'Choose the playoff winner');
+  $('#playoffWinner').disabled = busy || !completion.ready;
   $('#finishDescription').textContent = tied
     ? `First place is tied at ${points(leaders[0].total_units)} points. Run your playoff, then record its winner here.`
     : leaders.length
       ? `${leaders[0].name} leads with ${points(leaders[0].total_units)} points. Complete the tournament to reveal your champion to everyone.`
       : '';
-  $('#completeTournament').disabled = busy || (tied && !$('#playoffWinner').value);
+  const groups = completion.ready ? completion.playoffs : [];
+  const signature = JSON.stringify(groups);
+  if (fields.dataset.groups !== signature) {
+    fields.replaceChildren();
+    for (const group of groups) {
+      fields.append(element('p', 'muted', `Tied players: ${group.players.map(p => `${p.name} · Player ${p.id}`).join(' / ')}`));
+      for (const place of group.places.filter(place => place !== 1)) {
+        const id = `prize-playoff-${group.rank}-${place}`;
+        const label = element('label', '', `Playoff place ${place}`);
+        label.htmlFor = id;
+        const select = element('select');
+        select.id = id;
+        select.dataset.prizePlayoff = '';
+        select.dataset.rank = String(group.rank);
+        select.dataset.place = String(place);
+        fields.append(label, select);
+      }
+    }
+    fields.dataset.groups = signature;
+  }
+  const chosen = new Set(tied && $('#playoffWinner').value ? [$('#playoffWinner').value] : []);
+  for (const select of fields.querySelectorAll('select')) {
+    const group = groups.find(group => String(group.rank) === select.dataset.rank);
+    const options = group.players.filter(player => !chosen.has(player.id));
+    const value = options.some(player => player.id === select.value) ? select.value : '';
+    const signature = JSON.stringify(options);
+    if (select.dataset.options !== signature) {
+      select.replaceChildren(new Option('Choose the playoff finisher', ''), ...options.map(p => new Option(`${p.name} · Player ${p.id}`, p.id)));
+      select.dataset.options = signature;
+    }
+    select.value = value;
+    select.disabled = busy;
+    if (value) chosen.add(value);
+  }
+  $('#prizePlayoffPanel').hidden = !groups.length;
+  message($('#prizePlayoffStatus'), completion.ready ? '' : completion.dirty
+    ? 'Save or reload your prize settings before completing the tournament.'
+    : 'Loading the saved prize rules…');
+  $('#completeTournament').disabled = busy || !completion.ready || (tied && !$('#playoffWinner').value)
+    || [...fields.querySelectorAll('select')].some(select => !select.value);
 }
 
 $('#loginForm').addEventListener('submit', async (event) => {
@@ -355,6 +413,7 @@ $('#logoutButton').addEventListener('click', () =>
       draft = null;
       correctionId = null;
       prizeAdmin.clear();
+      playoffRevision = null;
       setAuthenticated(false);
     }
   )
@@ -427,9 +486,17 @@ $('#backToCurrent').addEventListener('click', () => {
   render();
 });
 $('#playoffWinner').addEventListener('change', render);
+$('#prizePlayoffFields').addEventListener('change', renderFinish);
 $('#completeTournament').addEventListener('click', () =>
   perform(
-    () => api('complete', { playoffWinnerId: $('#playoffWinner').value || undefined }),
+    () => {
+      const completion = prizeAdmin.completion();
+      if (!completion.ready) throw new Error('Wait for the saved prize rules before completing.');
+      const prizePlayoffs = Object.fromEntries(completion.playoffs.map(group => [group.rank, group.places.map(place =>
+        place === 1 ? $('#playoffWinner').value : $(`#prize-playoff-${group.rank}-${place}`).value
+      )]));
+      return api('complete', { playoffWinnerId: $('#playoffWinner').value || undefined, prizePlayoffs });
+    },
     (next) => client.apply(next)
   )
 );

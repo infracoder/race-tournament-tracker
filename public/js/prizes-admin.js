@@ -3,7 +3,7 @@ import { request, fetchData } from './championship-client.js';
 
 const tierKeys = ['first', 'second', 'third', 'participation'];
 
-export function createPrizeAdmin({ run, applyState, onAuthLost }) {
+export function createPrizeAdmin({ run, applyState, onAuthLost, onChange }) {
   let state,
     authenticated = false,
     busy = false,
@@ -156,7 +156,7 @@ export function createPrizeAdmin({ run, applyState, onAuthLost }) {
     $('#savePrizeSettings').disabled = busy || !loaded || Boolean(stale);
     $('#prizeLinkPlayer').disabled = busy;
     $('#getPrivatePrizeLink').disabled = busy || !$('#prizeLinkPlayer').value;
-    $('#reloadPrizeSettings').hidden = !stale;
+    $('#reloadPrizeSettings').hidden = !dirty;
     message(
       $('#prizeDraftNotice'),
       stale
@@ -173,6 +173,7 @@ export function createPrizeAdmin({ run, applyState, onAuthLost }) {
       currency && total.every(Number.isFinite)
         ? `Nine-player prize budget: ${money(Math.round((total[0] + total[1] + total[2] + total[3] * 6) * 100), currency)}`
         : 'Choose a currency to see your prize budget.';
+    onChange?.();
   }
 
   async function load() {
@@ -294,6 +295,13 @@ export function createPrizeAdmin({ run, applyState, onAuthLost }) {
   });
 
   return {
+    completion() {
+      return {
+        ready: Boolean(loaded && loaded.revision === state?.revision && !dirty),
+        dirty,
+        playoffs: loaded?.playoffs || []
+      };
+    },
     update(next, host, waiting) {
       state = next;
       authenticated = host;
