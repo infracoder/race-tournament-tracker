@@ -65,7 +65,17 @@ The planning estimate is **218 minutes**, using six minutes per race/team event,
 
 Host sessions last one hour and end on server restart. If a session expires during entry, log back in to recover the draft. Concurrent changes preserve the draft and require reloading the saved result; the app does not replay a stale submission automatically.
 
-**Gift-card prizes are planned separately.** Configurable images, private amounts, prize allocation, and their final reveal are not implemented in this core release.
+## Private gift-card prizes
+
+In host controls, open **Gift-card prizes**, enable prizes, choose a currency, and save the amounts and vendor options. Defaults are 100 / 75 / 50 for the first three places and 15 for each of the other six players: a total budget of 315 in your chosen currency. These defaults and your saved configuration are returned only to the authenticated organizer.
+
+Add the gift-card vendors you are offering. Each vendor includes a display card; you can upload your own PNG, JPEG, or WebP artwork up to 1 MB. Use ordinary display artwork without redemption codes. Amounts and vendor artwork stay out of public responses and assets before completion.
+
+After you complete the tournament, each player opens **My private prize** from their dashboard to reveal their own amount and choose a vendor. Other players' prizes remain private. Vendor choices persist and appear in the host's prize panel so you can arrange the cards. The app records preferences; purchasing, issuing, and delivering actual gift cards remain separate.
+
+The original registration phone provides private access automatically. For another device, select the player under **Help a player open their prize** and give them their private link. Treat that link as private: anyone holding it can view that player's prize. Selecting a public dashboard name alone does not grant access.
+
+Correcting completed results or changing prize settings/artwork seals the reveal and clears vendor choices. Complete the tournament again to assign the revised prizes. Old vendor submissions cannot apply to a new reveal. Exact point ties that would receive different prize amounts currently block prize completion until their resolution rule is settled.
 
 ## Persistence and older tournaments
 

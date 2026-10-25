@@ -86,3 +86,34 @@ test('a delayed initial session check cannot undo a successful host login', asyn
   await checked;
   await expect(page.getByRole('button', { name: 'Start the tournament' })).toBeVisible();
 });
+
+test('result fields and editor navigation stay locked until a slow save finishes', async ({ page, request }) => {
+  await page.goto('/organizer.html');
+  await page.getByLabel('Organizer PIN').fill('browser-test-2468');
+  await page.getByRole('button', { name: 'Open host controls' }).click();
+  await page.getByRole('button', { name: 'Start the tournament' }).click();
+  const state = await (await request.get('/api/championship/current')).json();
+  if (state.active_round.mode === 'renegade') await page.getByRole('radio', { name: /Cops/ }).check();
+  else for (const [index, p] of state.active_slot.participants.entries()) await page.getByLabel(`${p.name} finish`).selectOption(String(index + 1));
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/rounds/*/result', async route => {
+    await gate;
+    await route.continue();
+  });
+  try {
+    await page.getByRole('button', { name: 'Save result' }).click();
+    for (const control of await page.locator('#resultFields input, #resultFields select').all()) await expect(control).toBeDisabled();
+    await expect(page.locator('#correctionRound')).toBeDisabled();
+    await expect(page.locator('#reloadResult')).toBeDisabled();
+    await expect(page.locator('#backToCurrent')).toBeDisabled();
+    const saved = page.waitForResponse(r => r.url().endsWith('/result') && r.request().method() === 'PUT');
+    release();
+    expect((await saved).status()).toBe(200);
+    await expect(page.locator('#hostMessage')).toContainText('Result saved');
+    await expect(page.locator('#correctionRound')).toBeEnabled();
+    for (const control of await page.locator('#resultFields input, #resultFields select').all()) await expect(control).toBeEnabled();
+  } finally {
+    release();
+  }
+});

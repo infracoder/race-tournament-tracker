@@ -15,6 +15,8 @@ npm run test:browser
 
 `npm test` covers the classic schedules, championship fairness, exact tied scoring, atomic storage, API access, concurrent edits, registration recovery, application isolation, delayed client responses, and a full-event restart rehearsal. Browser tests use mobile Chromium (Pixel 7) and WebKit (iPhone 13) profiles. Their server creates a temporary database and listens on port 3108.
 
+Review regressions additionally cover interrupted legacy migrations and rollback, four scoring appearances in every classic configuration, consistent battle rosters and completion, stalled fetch/body recovery, repeated cached-page restoration, and locked result fields during a pending save. Prize tests assert unequal-amount ties reject completion atomically and equal-amount ties succeed.
+
 The browser rehearsal plays all 36 rounds through the host UI. Its equal-performance fixture produces nine players tied on 214 points, requires a playoff winner, reveals the champion on a separate public screen, then corrects a team result and requires completion again.
 
 The restart rehearsal closes and reopens the database midway through Balloon Battle / Coin Runners while paused. It checks the exact saved snapshot, completes the queue, and reconciles every player's category total and four win counters to independently calculated expected results.
@@ -23,8 +25,8 @@ The restart rehearsal closes and reopens the database midway through Balloon Bat
 
 Implementation checks run on October 24–25, 2026:
 
-- Domain, database, API, client, and full-event tests: passing.
-- Chromium-mobile and WebKit-mobile browser flows: passing, including the full 36-round playoff/correction rehearsal, preserved host drafts, session recovery, and retrying a lost registration reply.
+- Domain, database, API, client, and full-event tests: 44 passing on the host and Node 24 container after review fixes.
+- Chromium-mobile and WebKit-mobile browser flows: 26 passing, including the full 36-round playoff/correction rehearsal, preserved host drafts, session recovery, private prizes, slow-save protection, and retrying a lost registration reply.
 - Desktop Race HQ: visually inspected in the in-app browser against disposable preview data.
 - Physical iPhone and Android devices: not yet exercised.
 - Switch round timing and controller swaps: not yet measured.
@@ -78,6 +80,10 @@ Use a separate test database and the actual event WiFi:
 
 Use four human players, the intended game settings, and the actual controllers. Time one race, one Balloon Battle / Coin Runners pair, and one two-vs-two Renegade Roundup, including setup and controller handoff. The current planning budget is six, ten, and six minutes respectively, plus twenty minutes of breaks across the evening. Record measured times before promising a three-to-four-hour finish.
 
-## Prize follow-up
+## Prize verification
 
-Gift-card storage, private image serving, amounts, placement allocation, and the prize reveal remain deferred. Prize tests must verify server-side confidentiality and post-correction withdrawal before that feature is called complete.
+`test/championship-prizes.test.js` exercises organizer-only configuration, owner-bound access, private artwork serving, image validation and persistence, default nine-player allocation totaling 315, concurrent vendor choices, completion replay, and withdrawing prizes after correction. Sentinel amounts and vendor names must not appear in public snapshots or static sources. Guessing an image URL or selecting another player's dashboard must not grant access.
+
+`test/browser/prize-reveal.spec.js` verifies setup, private link import, the sealed pre-completion screen, amount reveal, vendor selection, refresh persistence, an unsaved choice surviving another player's update, and retraction after correction in both mobile engines.
+
+Exact point ties affecting different prize amounts remain a product clarification. Those completions are blocked instead of assigning unequal prizes using alphabetical ordering. Physical-phone testing should additionally cover returning on the original registration phone and using the host's private recovery link on another device.

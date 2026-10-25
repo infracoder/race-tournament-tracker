@@ -34,6 +34,10 @@ function createApp({ database, organizerPin, now, publicBaseUrl } = {}) {
   app.get('/health', (req, res) =>
     res.json({ status: 'ok', message: 'Mario Kart Tournament Server is running!' })
   );
+  app.use('/prize.html', (req, res, next) => {
+    res.set({ 'Cache-Control': 'no-store, private', 'Referrer-Policy': 'no-referrer' });
+    next();
+  });
   app.use(express.static(path.join(__dirname, 'public')));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);

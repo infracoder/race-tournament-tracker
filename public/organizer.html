@@ -114,6 +114,125 @@
             </button>
           </section>
           <section id="hostChampion" class="champion-banner section-gap" hidden></section>
+          <details id="prizeSettingsPanel" class="card section-gap">
+            <summary>Gift-card prizes <span class="private-badge">HOST ONLY</span></summary>
+            <p class="muted section-gap">
+              Configure the surprise here. Players see only their own prize after completion, then choose a
+              vendor. Card purchases and delivery happen separately.
+            </p>
+            <p class="muted">
+              Finish prize setup before completing the tournament. Changing amounts, vendors, or artwork
+              afterward reopens the tournament and clears saved vendor choices.
+            </p>
+            <p id="prizeSetupStatus" class="eyebrow section-gap"></p>
+            <form id="prizeSettingsForm">
+              <label class="check-label"
+                ><input id="prizesEnabled" type="checkbox" /> Enable gift-card prizes</label
+              >
+              <label for="prizeCurrency">Prize currency</label>
+              <select id="prizeCurrency">
+                <option value="">Choose currency</option>
+                <option value="USD">US dollars (USD)</option>
+                <option value="CAD">Canadian dollars (CAD)</option>
+                <option value="AUD">Australian dollars (AUD)</option>
+                <option value="NZD">New Zealand dollars (NZD)</option>
+                <option value="EUR">Euros (EUR)</option>
+                <option value="GBP">British pounds (GBP)</option>
+              </select>
+              <div class="prize-amount-grid">
+                <label for="prize-first"
+                  >First place<input
+                    id="prize-first"
+                    data-prize-tier="first"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    max="1000000"
+                    step="0.01"
+                    required
+                /></label>
+                <label for="prize-second"
+                  >Second place<input
+                    id="prize-second"
+                    data-prize-tier="second"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    max="1000000"
+                    step="0.01"
+                    required
+                /></label>
+                <label for="prize-third"
+                  >Third place<input
+                    id="prize-third"
+                    data-prize-tier="third"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    max="1000000"
+                    step="0.01"
+                    required
+                /></label>
+                <label for="prize-participation"
+                  >Everyone else<input
+                    id="prize-participation"
+                    data-prize-tier="participation"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    max="1000000"
+                    step="0.01"
+                    required
+                /></label>
+              </div>
+              <p id="prizeBudget" class="prize-budget"></p>
+              <h3 class="section-gap">Their choice of gift card</h3>
+              <p class="muted">
+                Add the vendors you are offering. Players choose from this list when they open their prize.
+              </p>
+              <div id="prizeVendors" class="prize-vendor-editors"></div>
+              <button id="addPrizeVendor" class="btn secondary" type="button">+ Add vendor</button>
+              <div id="prizeDraftNotice" class="notice warning" hidden></div>
+              <button id="reloadPrizeSettings" class="btn secondary full" type="button" hidden>
+                Reload saved prize settings
+              </button>
+              <button id="savePrizeSettings" class="btn primary full" type="submit">
+                Save private prize settings →
+              </button>
+              <p class="muted section-gap">
+                Changing prizes or artwork after completion closes the reveal and clears vendor choices until
+                you complete the tournament again.
+              </p>
+            </form>
+            <div id="prizeSettingsMessage" class="notice" role="status" hidden></div>
+            <div class="section-gap private-link-panel">
+              <h3>Help a player open their prize</h3>
+              <p class="muted">
+                Their original registration phone works automatically. For another device, give the player
+                their private link. Anyone with that link can view their prize.
+              </p>
+              <label for="prizeLinkPlayer">Player for private prize link</label
+              ><select id="prizeLinkPlayer">
+                <option value="">Choose a player</option>
+              </select>
+              <button id="getPrivatePrizeLink" class="btn secondary full" type="button">
+                Get private prize link
+              </button>
+              <div id="privateLinkResult" hidden>
+                <label for="privatePrizeLink">Share only with this player</label
+                ><input id="privatePrizeLink" type="text" readonly /><button
+                  id="copyPrivatePrizeLink"
+                  class="btn secondary full"
+                  type="button"
+                >
+                  Copy private link
+                </button>
+              </div>
+              <div id="prizeLinkMessage" class="notice" role="status" hidden></div>
+            </div>
+            <h3 class="section-gap">Player vendor choices</h3>
+            <div id="prizeOrders" class="table-scroll section-gap"></div>
+          </details>
           <section class="card section-gap">
             <div class="section-heading">
               <h2>The grid</h2>
