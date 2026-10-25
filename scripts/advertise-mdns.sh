@@ -9,7 +9,7 @@ SERVICE_NAME="Mario Kart Tournament"
 SERVICE_TYPE="_http._tcp"
 DOMAIN="local"
 HOST_LABEL="mariokart.local"
-PORT="${PORT:-3000}"
+PORT="${MDNS_PORT:-${PORT:-80}}"
 
 mkdir -p "$(dirname "$PID_FILE")"
 
@@ -66,4 +66,8 @@ fi
 echo "$DNS_SD_PID" > "$PID_FILE"
 
 echo "mDNS advertisement started (PID $DNS_SD_PID). Log: $LOG_FILE"
-echo "Try: open http://$HOST_LABEL:$PORT"
+if [ "$PORT" = "80" ]; then
+  echo "Try: open http://$HOST_LABEL"
+else
+  echo "Try: open http://$HOST_LABEL:$PORT"
+fi
