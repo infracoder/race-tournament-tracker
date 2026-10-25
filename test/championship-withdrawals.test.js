@@ -35,7 +35,7 @@ async function fixture(t) {
     state = joined.body.snapshot;
   }
   const withdraw = (playerId, snapshot = state, token = tokens[playerId]) => call(`/api/championship/${id}/players/${playerId}/withdraw`, { expectedRevision: snapshot.revision }, { token, host: false });
-  return { call, database, id, tokens, state, withdraw };
+  return { call, database, filename: path.join(dir, 'test.db'), id, tokens, state, withdraw };
 }
 
 async function save(call, id, state, groups) {
@@ -107,8 +107,8 @@ test('withdrawal belongs to the registered phone, retains its seat, and is retry
   assert.equal((await call(`/api/championship/${id}/start`, { expectedRevision: result.body.revision })).status, 200);
 });
 
-test('withdrawn leaders keep earned points but receive only a sealed consolation prize', async t => {
-  const { call, database, id, tokens, state: initial, withdraw } = await fixture(t);
+test('withdrawn leaders keep earned points and first completion permanently closes withdrawal', async t => {
+  const { call, database, filename, id, tokens, state: initial, withdraw } = await fixture(t);
   let state = await configure(call, id, initial);
   state = (await call(`/api/championship/${id}/start`, { expectedRevision: state.revision })).body;
   const first = state.active_slot;
@@ -126,7 +126,14 @@ test('withdrawn leaders keep earned points but receive only a sealed consolation
   for (const slot of state.slots.slice(1)) {
     for (const round of slot.rounds) assert.equal(round.results.some(r => r.player_id === victim), false);
   }
+  assert.equal(state.championship.first_completed_at, null);
+  const lastEligible = state.standings.filter(p => !p.withdrawn_at).at(-1);
+  const beforeCompletion = await withdraw(lastEligible.id, state);
+  assert.equal(beforeCompletion.status, 200, 'Withdrawal stays open until the first successful completion');
+  state = beforeCompletion.body;
   state = await complete(call, id, state);
+  const firstCompletion = state.championship.first_completed_at;
+  assert.equal(typeof firstCompletion, 'string');
   assert.notEqual(state.winner.id, victim);
   const award = (await call(prizePath, undefined, { host: false, token: tokens[victim] })).body;
   assert.equal(award.locked, false);
@@ -146,9 +153,21 @@ test('withdrawn leaders keep earned points but receive only a sealed consolation
   assert.equal(corrected.body.championship.status, 'awaiting_champion');
   assert.equal(corrected.body.slots[0].rounds[0].results.length, 4);
   assert.equal((await call(prizePath, undefined, { host: false, token: tokens[victim] })).body.locked, true);
-  const reopened = await withdraw(other.id, corrected.body);
-  assert.equal(reopened.status, 200, 'Retracting completion reopens withdrawal until the revised event is completed');
-  assert.ok(reopened.body.players.find(p => p.id === other.id).withdrawn_at);
+  assert.equal(corrected.body.championship.first_completed_at, firstCompletion);
+  assert.equal((await withdraw(other.id, corrected.body)).status, 409);
+  const prizeChange = await configure(call, id, corrected.body);
+  assert.equal(prizeChange.championship.first_completed_at, firstCompletion);
+  assert.equal((await withdraw(other.id, prizeChange)).status, 409);
+  const restarted = createDatabase(filename);
+  try {
+    await restarted.initializeSchema();
+    assert.equal((await restarted.get('SELECT first_completed_at FROM championships WHERE id = ?', [id])).first_completed_at, firstCompletion);
+  } finally { await restarted.close(); }
+  state = await complete(call, id, prizeChange);
+  assert.equal(state.championship.first_completed_at, firstCompletion);
+  const replacement = await call('/api/championship', { expectedActiveId: id, seed: 'fresh-after-completion' });
+  assert.equal(replacement.status, 201);
+  assert.equal(replacement.body.championship.first_completed_at, null);
 });
 
 test('withdrawal between solo rounds preserves the first round and awards no second-round points', async t => {
@@ -224,6 +243,22 @@ test('upgrading a populated championship preserves registrations and existing pr
   assert.equal(membership.status, 200);
   assert.equal(membership.body.player.id, 'A');
   assert.equal(JSON.stringify(membership.body).includes(tokens.A), false);
+});
+
+test('upgrading closes withdrawals for existing completed tournaments without closing uncompleted events', async t => {
+  const { call, database, id, state, withdraw } = await fixture(t);
+  const completedAt = '2026-10-01 12:00:00';
+  await database.run("INSERT INTO championships (id, title, seed, status, completed_at) VALUES ('old-completed', 'Old tournament', 'old', 'completed', ?)", [completedAt]);
+  const columns = await database.all('PRAGMA table_info(championships)');
+  if (columns.some(c => c.name === 'first_completed_at'))
+    await database.run('ALTER TABLE championships DROP COLUMN first_completed_at');
+  await database.initializeSchema();
+  await database.initializeSchema();
+  assert.equal((await database.get("SELECT first_completed_at FROM championships WHERE id = 'old-completed'")).first_completed_at, completedAt);
+  assert.equal((await call('/api/championship/current')).body.championship.first_completed_at, null);
+  const withdrawn = await withdraw('A', state);
+  assert.equal(withdrawn.status, 200);
+  assert.equal(withdrawn.body.championship.id, id);
 });
 
 test('the last solo participants withdrawing skips Coin Runners without losing Balloon Battle points', async t => {

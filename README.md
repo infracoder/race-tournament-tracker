@@ -83,7 +83,7 @@ Correcting completed results or changing prize settings/artwork seals the reveal
 
 Players can choose **Withdraw from tournament** on their own phone's **My turn** dashboard any time before the host completes the event. Confirmation is final for that event. Their name, earned points, and completed results remain on record, but they leave the championship rankings and placement-prize playoffs. Their reserved spot remains theirs, including private prize access; it cannot be claimed by a new registration.
 
-An effective correction or prize change after completion retracts that completion and reopens withdrawals until the host completes the revised tournament. Withdrawing during a break leaves the queue paused; resuming play skips newly empty events.
+The first successful completion closes withdrawals permanently for that tournament. Correcting results or changing prizes afterward retracts the reveal so the host can complete it again, while withdrawals stay closed. Withdrawing during a break leaves the queue paused; resuming play skips newly empty events.
 
 The schedule stays in place. Leave withdrawn players' seats empty and enter only the remaining players' finishing order, starting with first place. Remaining players use the usual 25/18/15/12 points. Team battles retain their assigned sides even when uneven; an empty side forfeits, and events with no remaining players are skipped automatically. If a player leaves between Balloon Battle and Coin Runners, their completed round still counts as half of that solo event and the other round earns zero. Saved results can still be corrected using the players who took part at the time.
 

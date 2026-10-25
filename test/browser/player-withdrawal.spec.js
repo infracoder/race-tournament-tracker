@@ -149,3 +149,42 @@ test('player controls recover after a temporary membership error', async ({ page
   await page.getByRole('button', { name: "I'm in" }).click();
   await expect(page.getByRole('button', { name: 'Withdraw from tournament', exact: true })).toBeVisible({ timeout: 10000 });
 });
+
+test('withdrawal stays closed after the first completion when the host corrects a score', async ({ page, request }) => {
+  await page.goto('/register.html');
+  await page.getByLabel('Your name', { exact: true }).fill('Casey');
+  await page.getByRole('button', { name: "I'm in" }).click();
+  const withdraw = page.getByRole('button', { name: 'Withdraw from tournament', exact: true });
+  await expect(withdraw).toBeVisible();
+  let state = await (await request.get('/api/championship/current')).json();
+  const id = state.championship.id;
+  const token = await page.evaluate(id => localStorage.getItem(`mk:registration:${id}`), id);
+  for (let i = 1; i < 9; i++) {
+    state = (await (await request.post(`/api/championship/${id}/players`, { data: { name: `Player ${i + 1}`, registrationToken: `closed-withdrawal-player-${i}` } })).json()).snapshot;
+  }
+  state = await (await request.post(`/api/championship/${id}/start`, { data: { expectedRevision: state.revision } })).json();
+  while (state.championship.status === 'running') {
+    const round = state.active_round;
+    const response = round
+      ? await request.put(`/api/championship/${id}/rounds/${round.id}/result`, { data: {
+        expectedRevision: state.revision,
+        ...(round.mode === 'renegade' ? { winningSide: 'cops' } : { groups: state.active_slot.participants.map(p => p.player_id).sort().map(id => [id]) })
+      } })
+      : await request.post(`/api/championship/${id}/advance`, { data: { expectedRevision: state.revision } });
+    expect(response.status()).toBe(200);
+    state = await response.json();
+  }
+  await expect(page.locator('#liveStatus')).toHaveText('Final results');
+  await expect(withdraw).toBeVisible();
+  state = await (await request.post(`/api/championship/${id}/complete`, { data: { expectedRevision: state.revision, playoffWinnerId: state.standings.find(p => p.rank === 1).id } })).json();
+  await expect(page.locator('#liveStatus')).toHaveText('Champion crowned');
+  await expect(withdraw).toBeHidden();
+  const race = state.slots.find(s => s.category === 'race').rounds[0];
+  const correction = await request.put(`/api/championship/${id}/rounds/${race.id}/result`, { data: { expectedRevision: state.revision, groups: race.results.map(r => [r.player_id]).reverse() } });
+  expect(correction.status()).toBe(200);
+  state = await correction.json();
+  await expect(page.locator('#liveStatus')).toHaveText('Final results');
+  await expect(withdraw).toBeHidden();
+  const rejected = await request.post(`/api/championship/${id}/players/A/withdraw`, { headers: { Authorization: `Bearer ${token}` }, data: { expectedRevision: state.revision } });
+  expect(rejected.status()).toBe(409);
+});
