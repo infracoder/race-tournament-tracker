@@ -75,21 +75,9 @@ function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
    * to race_participants junction table
    */
   async function migrateToJunctionTable() {
-    try {
-      // Check if migration is needed
-      const existingCount = await get('SELECT COUNT(*) as count FROM race_participants');
-      if (existingCount && existingCount.count > 0) {
-        return;
-      }
-
-      // Check if there are any races to migrate
-      const racesCount = await get('SELECT COUNT(*) as count FROM races');
-      if (!racesCount || racesCount.count === 0) {
-        return;
-      }
-
-      // Get all races with participant data
-      const races = await all(
+    await transaction(async (tx) => {
+      // Backfill missing rows even if a previous upgrade committed only part of a race.
+      const races = await tx.all(
         'SELECT race_number, player1_id, player2_id, player3_id, player4_id FROM races'
       );
 
@@ -102,16 +90,13 @@ function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
         ].filter((p) => p.id !== null && p.id !== undefined);
 
         for (const p of participants) {
-          await run(
+          await tx.run(
             'INSERT OR IGNORE INTO race_participants (race_number, player_id, slot_position) VALUES (?, ?, ?)',
             [race.race_number, p.id, p.slot]
           );
         }
       }
-    } catch (err) {
-      console.warn('⚠️  Migration warning:', err.message);
-      // Non-fatal - allow schema initialization to continue
-    }
+    });
   }
 
   // Initialize database schema
@@ -346,11 +331,11 @@ function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
       throw new Error(`Invalid players_per_race: ${playersPerRace}. Must be 2 or 4.`);
     }
 
-    // Calculate total races
-    const totalRaces = (playerCount * 4) / playersPerRace;
-    if (totalRaces !== Math.floor(totalRaces)) {
+    // Calculate scoring races before adding bonus battles.
+    const scoringRaceCount = (playerCount * 4) / playersPerRace;
+    if (scoringRaceCount !== Math.floor(scoringRaceCount)) {
       throw new Error(
-        `Invalid configuration: (${playerCount} * 4) / ${playersPerRace} = ${totalRaces} (must be an integer)`
+        `Invalid configuration: (${playerCount} * 4) / ${playersPerRace} = ${scoringRaceCount} (must be an integer)`
       );
     }
 
@@ -369,6 +354,14 @@ function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
     if (!validation.ok) {
       throw new Error(`Schedule validation failed: ${validation.errors.join(', ')}`);
     }
+
+    const battleSlots = pickNonConsecutiveSlots(schedule.length + 3, 3);
+    const events = schedule.map((race) => ({ ...race, is_battle: false }));
+    for (const raceNumber of battleSlots) {
+      events.splice(raceNumber - 1, 0, { is_battle: true });
+    }
+    events.forEach((event, index) => { event.race_number = index + 1; });
+    const totalRaces = events.length;
 
     await transaction(async (tx) => {
       // Clear existing data
@@ -390,7 +383,7 @@ function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
       }
 
       // Create races from generated schedule
-      for (const race of schedule) {
+      for (const race of events.filter((event) => !event.is_battle)) {
         // Insert base race record
         await tx.run('INSERT INTO races (race_number, completed) VALUES (?, 0)', [race.race_number]);
 
@@ -423,7 +416,6 @@ function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
       }
 
       // Generate and insert battle games
-      const battleSlots = pickNonConsecutiveSlots(totalRaces, 3, 2, totalRaces - 1);
       const allPlayerIds = (await tx.all('SELECT id FROM players ORDER BY id')).map((p) => p.id);
       const battleRosters = selectBattlePlayersRandom(allPlayerIds, 3, 4);
 
@@ -432,8 +424,16 @@ function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
         const roster = battleRosters[i];
         const stage = pickRandomStage();
 
-        // Mark race as battle
-        await tx.run('UPDATE races SET is_battle = 1 WHERE race_number = ?', [raceNumber]);
+        await tx.run(
+          'INSERT INTO races (race_number, player1_id, player2_id, player3_id, player4_id, completed, is_battle) VALUES (?, ?, ?, ?, ?, 0, 1)',
+          [raceNumber, ...roster]
+        );
+        for (let slot = 0; slot < roster.length; slot++) {
+          await tx.run(
+            'INSERT INTO race_participants (race_number, player_id, slot_position) VALUES (?, ?, ?)',
+            [raceNumber, roster[slot], slot + 1]
+          );
+        }
 
         // Insert battle game details
         await tx.run(
@@ -445,14 +445,15 @@ function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
 
     // Validate participation counts using junction table
     const counts = await all(`
-    SELECT p.player_letter, COUNT(*) as race_count
+    SELECT p.player_letter, COUNT(r.race_number) as race_count
     FROM players p
-    JOIN race_participants rp ON p.id = rp.player_id
+    LEFT JOIN race_participants rp ON p.id = rp.player_id
+    LEFT JOIN races r ON r.race_number = rp.race_number AND r.is_battle = 0
     GROUP BY p.id, p.player_letter
     ORDER BY p.player_letter
   `);
 
-    const allCorrect = counts.every((c) => c.race_count === 4);
+    const allCorrect = counts.length === playerCount && counts.every((c) => c.race_count === 4);
     if (!allCorrect) {
       throw new Error('❌ Post-seed validation failed: Not all players have exactly 4 races!');
     }
