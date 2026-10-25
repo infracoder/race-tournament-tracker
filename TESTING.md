@@ -1,234 +1,83 @@
-# Manual Testing Guide - Configurable Player Count Feature
+# Championship verification
 
-This guide will help you manually test the new configurable player count feature (8-10 players).
+Use disposable event data. Never reset the real tournament to run these checks.
 
-## Quick Start
+## Automated checks
 
-```bash
-# Ensure you're on the feature branch
-git status  # Should show: On branch feature/configurable-player-count
+On Node 24:
 
-# Start the server
-npm run dev
-
-# Server will display local IP - e.g., http://192.168.1.100:3000
-# Open this URL in your browser
+```sh
+npm ci
+npm test
+npx playwright install chromium webkit
+npm run test:browser
 ```
 
-## Test Scenarios
+`npm test` covers the classic schedules, championship fairness, exact tied scoring, atomic storage, API access, concurrent edits, registration recovery, application isolation, delayed client responses, and a full-event restart rehearsal. Browser tests use mobile Chromium (Pixel 7) and WebKit (iPhone 13) profiles. Their server creates a temporary database and listens on port 3108.
 
-### Scenario 1: 8-Player Tournament
+The browser rehearsal plays all 36 rounds through the host UI. Its equal-performance fixture produces nine players tied on 214 points, requires a playoff winner, reveals the champion on a separate public screen, then corrects a team result and requires completion again.
 
-**Setup:**
-```bash
-# Reset database with 8 players
-PLAYER_COUNT=8 npm run db:reset
-npm run dev
+The restart rehearsal closes and reopens the database midway through Balloon Battle / Coin Runners while paused. It checks the exact saved snapshot, completes the queue, and reconciles every player's category total and four win counters to independently calculated expected results.
+
+## Verification record
+
+Implementation checks run on October 24–25, 2026:
+
+- Domain, database, API, client, and full-event tests: passing.
+- Chromium-mobile and WebKit-mobile browser flows: passing, including the full 36-round playoff/correction rehearsal, preserved host drafts, session recovery, and retrying a lost registration reply.
+- Desktop Race HQ: visually inspected in the in-app browser against disposable preview data.
+- Physical iPhone and Android devices: not yet exercised.
+- Switch round timing and controller swaps: not yet measured.
+
+The Node 24 Trixie image was built and exercised with native SQLite 3.52.0. Its tests passed, and a disposable volume smoke preserved the full snapshot across container restart while paused between Balloon Battle and Coin Runners. The first Bookworm build exposed an upstream binary's GLIBC requirement; Trixie resolves that mismatch. Browser emulation does not prove an actual phone can resolve the event address or reach the host over WiFi.
+
+## Disposable container smoke
+
+Build a new image and create a separate test volume. Use unique names if these already exist:
+
+```sh
+docker build -t mariokart-championship:local .
+docker volume create mariokart-championship-smoke
+docker run -d --name mariokart-championship-smoke \
+  -p 127.0.0.1:3110:3000 \
+  -v mariokart-championship-smoke:/data \
+  -e ORGANIZER_PIN=container-test-only \
+  -e PUBLIC_BASE_URL=http://mariokart.local:3110 \
+  mariokart-championship:local
 ```
 
-**Test Steps:**
-1. Open organizer page: `http://localhost:3000/organizer.html`
-2. Login with PIN (from your .env file)
-3. Click "Initialize Tournament"
-4. When prompted, enter **8** for player count
-5. Verify confirmation shows "8 players"
-6. Check tournament info box shows: "🎮 8 players 🏁 8 races"
+Open the host controls at `http://localhost:3110/organizer.html`, use the test PIN above, and set up a disposable tournament. Register a sample player, record its tournament ID and name, then restart:
 
-**Registration (8 players):**
-7. Open registration page in 8 different browser tabs/windows
-8. Register 8 different players (e.g., Alice, Bob, Carol, Dave, Eve, Frank, Grace, Henry)
-9. Verify each gets letters A through H
-10. Verify 9th registration attempt fails with "All player slots are full (8/8 registered)"
-
-**Races:**
-11. Check organizer dashboard shows 8 races
-12. Verify each race has exactly 4 players
-13. Submit results for all 8 races
-14. Verify leaderboard shows all 8 players
-15. Complete tournament and declare winner
-
-### Scenario 2: 9-Player Tournament (Default/Legacy)
-
-**Setup:**
-```bash
-# Reset database (defaults to 9)
-npm run db:reset
-npm run dev
+```sh
+docker restart mariokart-championship-smoke
 ```
 
-**Test Steps:**
-1. Initialize tournament with **9** players (or just accept default)
-2. Register 9 players (A-I)
-3. Verify 9 races with 4 players each
-4. Submit all results
-5. Verify parity with old behavior
+Check that the tournament ID, player, schedule, and saved results persist. Log in again; organizer sessions deliberately do not survive restart. The QR must use the configured host origin, never a container bridge address.
 
-### Scenario 3: 10-Player Tournament
+Only after confirming these are your disposable resources, clean them up:
 
-**Setup:**
-```bash
-# Reset with 10 players
-PLAYER_COUNT=10 npm run db:reset
-npm run dev
+```sh
+docker rm -f mariokart-championship-smoke
+docker volume rm mariokart-championship-smoke
 ```
 
-**Test Steps:**
-1. Initialize tournament with **10** players
-2. Register 10 players (A-J)
-3. Verify 10 races
-4. Check schedule fairness:
-   - Each player appears in exactly 4 races
-   - No player in same race twice
-5. Submit results and complete tournament
+## Real-phone rehearsal
 
-### Scenario 4: Database Migration (Backward Compatibility)
+Use a separate test database and the actual event WiFi:
 
-**Test Steps:**
-1. Start with an OLD database (if you have one saved)
-2. Start the server: `npm start`
-3. Verify migration messages in console:
-   - "✅ Added player_count column..."
-   - "✅ Added total_races column..."
-4. Verify old tournament data still works
-5. Initialize new tournament with different player count
+1. Set `PUBLIC_BASE_URL` to the host's reachable WiFi address and start the server. Check the firewall permits the configured port and guest WiFi does not isolate devices.
+2. Scan the join QR on an iPhone using Safari and an Android phone using Chrome. Both should open the same current tournament.
+3. Register, reload, close/reopen the page, and use **Select your name** from another browser. None should create another competitor accidentally.
+4. Confirm Playing Now, Up Next, personal schedules, controller numbers, team sides, and category points are readable. Try enlarged text and browser zoom.
+5. Enter Balloon Battle results, confirm points remain pending, then enter Coin Runners and confirm the average is awarded.
+6. Pause/resume, edit a saved result, and advance the queue. Public screens should update within a few seconds.
+7. Disconnect a phone briefly. It should show the last saved update and a reconnection notice, then recover when online or foregrounded.
+8. Complete a disposable tournament, resolve a tie through a playoff, and confirm everyone sees the same champion.
 
-### Scenario 5: Configuration Priority
+## Switch pacing rehearsal
 
-**Test A - Environment Variable:**
-```bash
-PLAYER_COUNT=10 npm run db:reset
-npm start
-# Initialize tournament without specifying count
-# Should default to 10 from env var
-```
+Use four human players, the intended game settings, and the actual controllers. Time one race, one Balloon Battle / Coin Runners pair, and one two-vs-two Renegade Roundup, including setup and controller handoff. The current planning budget is six, ten, and six minutes respectively, plus twenty minutes of breaks across the evening. Record measured times before promising a three-to-four-hour finish.
 
-**Test B - Request Body (Highest Priority):**
-1. Start server normally: `npm start`
-2. Initialize with specific count via UI (e.g., 8)
-3. Verify it uses 8, not env var or default
+## Prize follow-up
 
-**Test C - Config File:**
-```bash
-# Create config file
-mkdir -p config
-echo '{"player_count": 10}' > config/tournament-config.json
-
-npm start
-# Initialize without specifying count
-# Should use 10 from config file
-```
-
-## UI Validation Checklist
-
-### Index Page (`/`)
-- [ ] Header shows dynamic count: "8 Players • 8 Races • 1 Champion"
-- [ ] Tournament stats show correct total_races
-- [ ] "How It Works" section doesn't mention specific numbers
-- [ ] Register button disabled when all slots full
-
-### Register Page (`/register.html`)
-- [ ] Welcome text doesn't say "A-I" specifically
-- [ ] Registration status shows correct available count
-- [ ] Can't register more than player_count
-
-### Organizer Dashboard (`/organizer.html`)
-- [ ] Player count selector appears on init (8, 9, or 10)
-- [ ] Tournament info shows: "🎮 X players 🏁 X races 📊 X completed"
-- [ ] Player count remembered in localStorage for next init
-- [ ] All races show correct player count
-
-### Player Dashboard (`/player.html?id=X`)
-- [ ] Shows correct schedule (4 races)
-- [ ] Stats reflect actual race count
-
-### Leaderboard (`/leaderboard.html`)
-- [ ] Shows all registered players (8, 9, or 10)
-- [ ] Total races displays correctly
-- [ ] Works with different player counts
-
-## Edge Cases to Test
-
-### Invalid Inputs
-- [ ] Try initializing with player_count=7 (should reject)
-- [ ] Try initializing with player_count=11 (should reject)
-- [ ] Try initializing with player_count="abc" (should reject)
-
-### Schedule Quality
-- [ ] Check max pair repeats ≤ 3 (run `npm run test:schedule` for metrics)
-- [ ] Verify no player appears twice in same race
-- [ ] Each player appears exactly 4 times
-
-### Race Results
-- [ ] Submit results for all races
-- [ ] Verify points calculated correctly
-- [ ] Tiebreakers work (points → 1sts → 2nds → 3rds → 4ths)
-- [ ] Winner declaration after final race
-
-## Performance Checks
-
-- [ ] Schedule generation is fast (< 1 second)
-- [ ] Page loads don't timeout
-- [ ] Database queries complete quickly
-- [ ] Mobile UI responsive on different player counts
-
-## Known Good Metrics
-
-From automated tests, expected schedule quality:
-
-**8 Players:**
-- Total Races: 8
-- Each player: exactly 4 races
-- Max pair repeats: ≤ 3
-- Max back-to-back: ≤ 2
-
-**9 Players:**
-- Total Races: 9
-- Each player: exactly 4 races
-- Max pair repeats: ≤ 3
-- Max back-to-back: ≤ 1
-
-**10 Players:**
-- Total Races: 10
-- Each player: exactly 4 races
-- Max pair repeats: ≤ 2
-- Max back-to-back: ≤ 1
-
-## Troubleshooting
-
-### Issue: Tournament won't initialize
-- Check .env file has ORGANIZER_PIN set
-- Verify you're logged in as organizer
-- Check console for errors
-
-### Issue: Schedule looks unfair
-- Run `npm run test:schedule` to verify algorithm
-- Check database: `sqlite3 tournament.db "SELECT * FROM races;"`
-- Verify player_count in tournament table
-
-### Issue: Player count not changing
-- Clear browser localStorage
-- Delete tournament.db and reinitialize
-- Check console logs for configuration precedence
-
-## Success Criteria
-
-✅ All 3 player counts (8, 9, 10) work end-to-end  
-✅ Each player races exactly 4 times  
-✅ All UI pages show dynamic counts  
-✅ Configuration priority works correctly  
-✅ Database migration handles old schemas  
-✅ Schedule generation is fair and deterministic  
-✅ No hardcoded "9" references visible to users  
-
-## Reporting Issues
-
-If you find any bugs during testing:
-1. Note the player count being tested
-2. Screenshot the issue
-3. Check browser console for errors
-4. Note reproduction steps
-5. Check database state if applicable
-
----
-
-**After successful testing**, the feature is ready to merge!
+Gift-card storage, private image serving, amounts, placement allocation, and the prize reveal remain deferred. Prize tests must verify server-side confidentiality and post-correction withdrawal before that feature is called complete.

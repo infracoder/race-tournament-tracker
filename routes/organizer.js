@@ -20,7 +20,8 @@ function createOrganizer({ pin = process.env.ORGANIZER_PIN || '1234', now = Date
     next();
   }
   router.post('/login', (req, res) => {
-    if (typeof req.body.pin !== 'string' || !req.body.pin) return res.status(400).json({ error: 'PIN required.' });
+    if (typeof req.body.pin !== 'string' || !req.body.pin)
+      return res.status(400).json({ error: 'PIN required.' });
     if (req.body.pin !== pin) return res.status(401).json({ error: 'Invalid PIN.' });
     const old = req.cookies[COOKIE];
     if (old) sessions.delete(old);

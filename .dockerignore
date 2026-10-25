@@ -7,3 +7,5 @@ tournament.db
 .gitignore
 README.md
 *.md
+test-results
+playwright-report

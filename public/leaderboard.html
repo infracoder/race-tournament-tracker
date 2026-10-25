@@ -1,281 +1,88 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <title>Leaderboard - Mario Kart Tournament</title>
-    <link rel="stylesheet" href="/css/styles.css">
-</head>
-<body>
-    <div class="header">
-        <h1>🏆 Tournament Leaderboard</h1>
-        <p>Live Standings</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ed3e37" />
+    <meta
+      name="description"
+      content="The Tolsma 3rd Annual Mario Kart Tournament. Follow your lineup, schedule and championship standings."
+    />
+    <title>Standings · Tolsma Kart 03</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script type="module" src="/js/leaderboard.js"></script>
+  </head>
+  <body data-page="leaderboard">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Tolsma Kart Championship home"
+          ><span class="checkered-mark" aria-hidden="true"></span
+          ><span>TOLSMA<span class="brand-sub">KART CHAMPIONSHIP</span></span
+          ><span class="brand-edition">03</span></a
+        >
+        <nav aria-label="Main navigation">
+          <a href="/">Race HQ</a><a href="/leaderboard.html" aria-current="page">Standings</a
+          ><a href="/player.html">My turn</a
+          ><a class="host-link" href="/organizer.html" aria-label="Host controls" title="Host controls">⚙</a>
+        </nav>
+      </div>
+    </header>
+    <div class="status-bar">
+      <span id="liveStatus" class="live-status">Connecting…</span
+      ><span class="status-event">THIRD ANNUAL <span aria-hidden="true">/</span> ONE BIG NIGHT</span>
     </div>
-
-    <div class="container">
-        <!-- Winner Banner (shown when tournament is complete) -->
-        <div id="winnerBanner" class="hidden"></div>
-
-        <!-- Tournament Progress -->
-        <div class="card">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalPlayers">0</div>
-                    <div class="stat-label">Players</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="racesCompleted">0</div>
-                    <div class="stat-label">Races Done</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalRaces">0</div>
-                    <div class="stat-label">Total Races</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="racesRemaining">0</div>
-                    <div class="stat-label">Remaining</div>
-                </div>
-            </div>
+    <div id="connectionNotice" class="notice warning connection-notice" role="status" hidden></div>
+    <main id="main" class="container">
+      <section class="page-heading heading-row">
+        <div>
+          <span class="eyebrow">EVERY POINT COUNTS</span>
+          <h1>The <span class="red-text">standings.</span></h1>
+          <p class="intro">Racing, solo battles, and team wins. One overall championship.</p>
         </div>
-
-        <!-- Leaderboard -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">📊 Current Standings</h2>
-            </div>
-
-            <div id="loadingLeaderboard" class="loading-container">
-                <div class="loading"></div>
-            </div>
-
-            <div id="leaderboardContent" class="hidden leaderboard-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Player</th>
-                            <th class="hide-mobile">Letter</th>
-                            <th>Points</th>
-                            <th class="hide-mobile">1st</th>
-                            <th class="hide-mobile">2nd</th>
-                            <th class="hide-mobile">3rd</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leaderboardBody"></tbody>
-                </table>
-            </div>
-
-            <div id="noPlayersMessage" class="hidden">
-                <div class="alert alert-info">
-                    No players registered yet. Check back soon!
-                </div>
-            </div>
+        <div class="round-counter">
+          <strong id="leaderboardProgress">0</strong><span>OF 27 EVENTS<br />COMPLETED</span>
         </div>
-
-        <!-- Info Box -->
-        <div class="card">
-            <div class="info-box" id="infoBox">
-                <p><strong>📝 Scoring System:</strong></p>
-                <p style="margin-top: 10px;" id="scoringText">
-                    Loading...
-                </p>
-                <p style="margin-top: 15px;"><strong>🏅 Tiebreakers:</strong></p>
-                <p style="margin-top: 5px;" id="tiebreakerText">
-                    Total Points → Most 1st Places → Most 2nd Places
-                </p>
-            </div>
+      </section>
+      <section id="leaderboardChampion" class="champion-banner" hidden></section>
+      <div id="tieNotice" class="notice info" hidden></div>
+      <section class="card standings-card">
+        <div class="section-heading">
+          <h2>Championship points</h2>
+          <span class="eyebrow">LIVE · THREE CATEGORIES · 100 POINTS EACH</span>
         </div>
-
-        <!-- Navigation -->
-        <div class="card">
-            <div class="grid grid-2">
-                <a href="/" class="btn btn-secondary btn-block">
-                    🏠 Home
-                </a>
-                <a href="/register.html" class="btn btn-primary btn-block" id="registerBtn">
-                    📝 Register
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let refreshInterval = null;
-        let confettiInterval = null;
-
-        async function loadLeaderboard() {
-            try {
-                const [leaderboardRes, statusRes, playersRes] = await Promise.all([
-                    fetch('/api/players/leaderboard'),
-                    fetch('/api/tournament/status'),
-                    fetch('/api/players')
-                ]);
-
-                const leaderboard = await leaderboardRes.json();
-                const status = await statusRes.json();
-                const players = await playersRes.json();
-
-                // Update stats
-                const totalRaces = status.total_races || 9;
-                const playersPerRace = status.players_per_race || 4;
-                
-                // Update scoring info dynamically
-                updateScoringInfo(playersPerRace);
-                
-                document.getElementById('totalPlayers').textContent = players.registered || 0;
-                document.getElementById('totalRaces').textContent = totalRaces;
-                document.getElementById('racesCompleted').textContent = status.races_completed || 0;
-                document.getElementById('racesRemaining').textContent = 
-                    totalRaces - (status.races_completed || 0);
-                
-                // Disable register button if all players registered
-                const registerBtn = document.getElementById('registerBtn');
-                if (players.available === 0) {
-                    registerBtn.style.opacity = '0.5';
-                    registerBtn.style.pointerEvents = 'none';
-                    registerBtn.innerHTML = '✓ All Players Registered';
-                } else {
-                    registerBtn.style.opacity = '1';
-                    registerBtn.style.pointerEvents = 'auto';
-                    registerBtn.innerHTML = '📝 Register';
-                }
-
-                // Check for winner
-                if (status.winner) {
-                    showWinnerBanner(status.winner);
-                } else {
-                    document.getElementById('winnerBanner').classList.add('hidden');
-                    stopConfetti();
-                }
-
-                // Render leaderboard
-                if (leaderboard.standings && leaderboard.standings.length > 0) {
-                    renderLeaderboard(leaderboard.standings);
-                    document.getElementById('loadingLeaderboard').classList.add('hidden');
-                    document.getElementById('leaderboardContent').classList.remove('hidden');
-                    document.getElementById('noPlayersMessage').classList.add('hidden');
-                } else {
-                    document.getElementById('loadingLeaderboard').classList.add('hidden');
-                    document.getElementById('leaderboardContent').classList.add('hidden');
-                    document.getElementById('noPlayersMessage').classList.remove('hidden');
-                }
-            } catch (error) {
-                console.error('Error loading leaderboard:', error);
-            }
-        }
-
-        function updateScoringInfo(playersPerRace) {
-            const scoringText = document.getElementById('scoringText');
-            const tiebreakerText = document.getElementById('tiebreakerText');
-            
-            if (playersPerRace === 2) {
-                scoringText.innerHTML = `
-                    1st Place: <strong>25 points</strong> • 
-                    2nd Place: <strong>18 points</strong>
-                `;
-                tiebreakerText.textContent = 'Total Points → Most 1st Places → Most 2nd Places';
-            } else {
-                scoringText.innerHTML = `
-                    1st Place: <strong>25 points</strong> • 
-                    2nd Place: <strong>18 points</strong> • 
-                    3rd Place: <strong>15 points</strong> • 
-                    4th Place: <strong>12 points</strong>
-                `;
-                tiebreakerText.textContent = 'Total Points → Most 1st Places → Most 2nd Places → Most 3rd Places';
-            }
-        }
-
-        function renderLeaderboard(standings) {
-            const tbody = document.getElementById('leaderboardBody');
-            
-            tbody.innerHTML = standings.map((player) => {
-                let rankDisplay = `<span class="rank-badge">${player.rank}</span>`;
-                
-                if (player.rank === 1) {
-                    rankDisplay = `<span class="rank-badge rank-1">🥇</span>`;
-                } else if (player.rank === 2) {
-                    rankDisplay = `<span class="rank-badge rank-2">🥈</span>`;
-                } else if (player.rank === 3) {
-                    rankDisplay = `<span class="rank-badge rank-3">🥉</span>`;
-                }
-
-                return `
-                    <tr>
-                        <td>${rankDisplay}</td>
-                        <td><strong>${player.name || 'TBD'}</strong></td>
-                        <td class="hide-mobile">${player.player_letter}</td>
-                        <td><strong style="color: #E60012;">${player.total_points}</strong></td>
-                        <td class="hide-mobile">${player.firsts}</td>
-                        <td class="hide-mobile">${player.seconds}</td>
-                        <td class="hide-mobile">${player.thirds}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function showWinnerBanner(winner) {
-            const banner = document.getElementById('winnerBanner');
-            banner.innerHTML = `
-                <div class="winner-banner">
-                    <h2>🏆 TOURNAMENT CHAMPION 🏆</h2>
-                    <div class="winner-name">${winner.name}</div>
-                    <p style="font-size: 20px; margin-top: 15px; font-weight: 700;">
-                        ${winner.points || 0} Points
-                    </p>
-                </div>
-            `;
-            banner.classList.remove('hidden');
-            startConfetti();
-        }
-
-        function startConfetti() {
-            if (confettiInterval) return; // Already running
-            
-            confettiInterval = setInterval(() => {
-                createConfetti();
-            }, 300);
-        }
-
-        function stopConfetti() {
-            if (confettiInterval) {
-                clearInterval(confettiInterval);
-                confettiInterval = null;
-            }
-            // Remove existing confetti
-            document.querySelectorAll('.confetti').forEach(c => c.remove());
-        }
-
-        function createConfetti() {
-            const colors = ['#FFD700', '#E60012', '#0066CC', '#00A650', '#FF9900'];
-            const confetti = document.createElement('div');
-            confetti.className = 'confetti';
-            confetti.style.left = Math.random() * 100 + '%';
-            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-            confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
-            confetti.style.width = confetti.style.height = (Math.random() * 10 + 5) + 'px';
-            
-            document.body.appendChild(confetti);
-            
-            setTimeout(() => {
-                confetti.remove();
-            }, 4000);
-        }
-
-        // Load leaderboard on page load
-        loadLeaderboard();
-
-        // Refresh every 5 seconds
-        refreshInterval = setInterval(loadLeaderboard, 5000);
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
-            }
-            stopConfetti();
-        });
-    </script>
-</body>
+        <div id="standingsTable"></div>
+        <p class="table-note">
+          Equal scores share a rank. A solo battle slot counts after both rounds are saved. Points may include
+          fractions from tied finishes.
+        </p>
+      </section>
+      <div class="two-col section-gap">
+        <div id="leaderboardCurrent"></div>
+        <section class="card rules-card">
+          <span class="eyebrow">THE SCORECARD</span>
+          <h2>How points work</h2>
+          <div class="scoring-places">
+            <div><strong>25</strong><span>1ST</span></div>
+            <div><strong>18</strong><span>2ND</span></div>
+            <div><strong>15</strong><span>3RD</span></div>
+            <div><strong>12</strong><span>4TH</span></div>
+          </div>
+          <p>
+            Races and solo rounds use these placement points. The two solo rounds in each slot are averaged.
+          </p>
+          <p>
+            Team battle: <strong>25 points each</strong> for the winning side, <strong>12 each</strong> for
+            the other side.
+          </p>
+        </section>
+      </div>
+    </main>
+    <footer class="site-footer">
+      <a class="brand-footer" href="/">TOLSMA KART <span>03</span></a>
+      <p>A little competition. A lot of good company.</p>
+      <a href="/organizer.html">Host controls ↗</a>
+    </footer>
+    <noscript>This tournament needs JavaScript enabled to show live updates.</noscript>
+  </body>
 </html>

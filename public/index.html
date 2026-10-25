@@ -1,258 +1,126 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <title>🏁 Mario Kart Tournament</title>
-    <link rel="stylesheet" href="/css/styles.css">
-</head>
-<body>
-    <div class="header" style="position: relative;">
-        <h1>🏁 Tolsma 2nd Annual Mario Kart Tournament 🏎️</h1>
-        <p id="headerSubtitle">Loading tournament info...</p>
-        <a href="/organizer.html" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 8px; color: white; text-decoration: none; font-size: 14px;" title="Organizer Login">
-            ⚙️
-        </a>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ed3e37" />
+    <meta
+      name="description"
+      content="The Tolsma 3rd Annual Mario Kart Tournament. Follow your lineup, schedule and championship standings."
+    />
+    <title>Race HQ · Tolsma Kart 03</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script type="module" src="/js/home.js"></script>
+  </head>
+  <body data-page="home">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Tolsma Kart Championship home"
+          ><span class="checkered-mark" aria-hidden="true"></span
+          ><span>TOLSMA<span class="brand-sub">KART CHAMPIONSHIP</span></span
+          ><span class="brand-edition">03</span></a
+        >
+        <nav aria-label="Main navigation">
+          <a href="/" aria-current="page">Race HQ</a><a href="/leaderboard.html">Standings</a
+          ><a href="/player.html">My turn</a
+          ><a class="host-link" href="/organizer.html" aria-label="Host controls" title="Host controls">⚙</a>
+        </nav>
+      </div>
+    </header>
+    <div class="status-bar">
+      <span id="liveStatus" class="live-status">Connecting…</span
+      ><span class="status-event">THIRD ANNUAL <span aria-hidden="true">/</span> ONE BIG NIGHT</span>
     </div>
-
-    <div class="container">
-        <div class="card">
-            <div class="info-box">
-                <p><strong>🎮 Welcome to the Mario Kart Tournament!</strong></p>
-                <p style="margin-top: 10px;">Choose your role below to get started. Players can register and track their progress, while the organizer manages race results.</p>
-            </div>
-
-            <a href="/register.html" class="btn btn-primary btn-large btn-block" id="registerBtn">
-                📝 Register as Player
-            </a>
-
-            <div class="mt-20">
-                <a href="/leaderboard.html" class="btn btn-secondary btn-large btn-block">
-                    🏆 View Leaderboard
-                </a>
-            </div>
+    <div id="connectionNotice" class="notice warning connection-notice" role="status" hidden></div>
+    <main id="main" class="container">
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">MARIO KART 8 DELUXE · ONE SWITCH · ALL IN</span>
+          <h1>Nine players.<br />One <span class="red-text">champion.</span></h1>
+          <p class="intro">
+            Racing, rivalries, and a little teamwork. Welcome to the third annual Tolsma tournament.
+          </p>
+          <div class="actions">
+            <a id="joinAction" class="btn primary" href="/register.html"
+              >Claim your spot <span aria-hidden="true">↗</span></a
+            ><a class="text-link" href="/leaderboard.html">See the standings →</a>
+          </div>
+          <div class="edition-note">
+            <span class="edition-number">03</span
+            ><span>THIRD ANNUAL<br /><strong>Bring your A-game.</strong></span>
+          </div>
         </div>
-
-        <!-- Player Login -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">👤 Already Registered?</h2>
-            </div>
-            
-            <div class="info-box">
-                <p>Select your name below to view your schedule and track your progress.</p>
-            </div>
-
-            <form id="playerLoginForm" onsubmit="playerLogin(event)">
-                <div class="form-group">
-                    <label for="playerSelect" class="form-label">Select Your Name</label>
-                    <select id="playerSelect" class="form-select" required>
-                        <option value="">-- Loading players... --</option>
-                    </select>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-large btn-block">
-                    📅 View My Schedule
-                </button>
-            </form>
+        <div id="currentEvent" aria-live="polite">
+          <div class="card loading">Getting the grid ready…</div>
         </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">ℹ️ Tournament Info</h2>
-            </div>
-            
-            <div id="tournamentStatus" class="loading-container">
-                <div class="loading"></div>
-            </div>
-
-            <div id="statusContent" class="hidden">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalPlayers">0</div>
-                        <div class="stat-label">Players</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="racesCompleted">0</div>
-                        <div class="stat-label">Races Done</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalRaces">0</div>
-                        <div class="stat-label">Total Races</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="racesRemaining">0</div>
-                        <div class="stat-label">Remaining</div>
-                    </div>
-                </div>
-
-                <div id="tournamentNotice"></div>
-            </div>
+      </section>
+      <section class="numbers-strip" aria-label="Tournament progress">
+        <div><strong id="registeredCount">—</strong><span>PLAYERS / 9</span></div>
+        <div><strong id="eventsCount">—</strong><span>EVENTS DONE / 27</span></div>
+        <div><strong id="roundsCount">—</strong><span>ROUNDS DONE / 36</span></div>
+        <div><strong>300</strong><span>MAXIMUM POINTS</span></div>
+      </section>
+      <section id="championBanner" class="champion-banner" hidden></section>
+      <section class="two-col section-gap">
+        <div>
+          <div class="section-heading">
+            <h2>On deck</h2>
+            <span class="eyebrow">GET YOUR CONTROLLERS READY</span>
+          </div>
+          <div id="upNext"></div>
         </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">📋 How It Works</h2>
-            </div>
-            <div id="howItWorksContent" style="line-height: 1.8;">
-                <p><strong>1. Registration:</strong> Players register with their name and receive a player letter.</p>
-                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents.</p>
-                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system.</p>
-                <p class="mt-20"><strong>4. Tiebreakers:</strong> Most 1st places → Most 2nd places.</p>
-                <p class="mt-20"><strong>5. Winner:</strong> After all races are complete, the player with the most points wins! 🏆</p>
-            </div>
+        <aside class="card share-card">
+          <span class="eyebrow">SAME WIFI. SAME RIVALRY.</span>
+          <h2>Get everyone in.</h2>
+          <p class="muted">Scan to join the tournament on your phone.</p>
+          <img id="joinQr" class="qr" alt="QR code to join this tournament" hidden /><a
+            id="joinUrl"
+            class="share-url"
+            href="/register.html"
+            >Waiting for the host…</a
+          >
+        </aside>
+      </section>
+      <section class="section-gap">
+        <div class="section-heading">
+          <h2>Three ways to win.</h2>
+          <span class="eyebrow">EQUAL OPPORTUNITY. EVERY PLAYER.</span>
         </div>
-    </div>
-
-    <script>
-        let allPlayers = [];
-
-        // Player login handler
-        function playerLogin(event) {
-            event.preventDefault();
-            const playerId = document.getElementById('playerSelect').value;
-            if (playerId) {
-                window.location.href = `/player.html?id=${playerId}`;
-            }
-        }
-
-        // Populate player dropdown
-        function populatePlayerDropdown(players) {
-            const select = document.getElementById('playerSelect');
-            allPlayers = players.players || [];
-            
-            if (allPlayers.length === 0) {
-                select.innerHTML = '<option value="">-- No players registered yet --</option>';
-                select.disabled = true;
-                document.querySelector('#playerLoginForm button').disabled = true;
-            } else {
-                select.innerHTML = '<option value="">-- Select your name --</option>' +
-                    allPlayers.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-                select.disabled = false;
-                document.querySelector('#playerLoginForm button').disabled = false;
-            }
-        }
-
-        // Update "How It Works" section based on players per race
-        function updateHowItWorks(playersPerRace) {
-            const content = document.getElementById('howItWorksContent');
-            
-            const scoringText = playersPerRace === 2 
-                ? '1st place: 25pts, 2nd: 18pts' 
-                : '1st place: 25pts, 2nd: 18pts, 3rd: 15pts, 4th: 12pts';
-            
-            const tiebreakerText = playersPerRace === 2
-                ? 'Most 1st places → Most 2nd places'
-                : 'Most 1st places → Most 2nd places → Most 3rd places';
-            
-            const racersText = `${playersPerRace} player${playersPerRace > 1 ? 's' : ''} per race`;
-            
-            content.innerHTML = `
-                <p><strong>1. Registration:</strong> Players register with their name and receive a player letter.</p>
-                <p class="mt-20"><strong>2. Racing:</strong> Each player races exactly 4 times against different opponents (${racersText}).</p>
-                <p class="mt-20"><strong>3. Scoring:</strong> F1 points system - ${scoringText}.</p>
-                <p class="mt-20"><strong>4. Tiebreakers:</strong> ${tiebreakerText}.</p>
-                <p class="mt-20"><strong>5. Winner:</strong> After all races are complete, the player with the most points wins! 🏆</p>
-            `;
-        }
-
-        // Fetch tournament status
-        async function loadTournamentStatus() {
-            try {
-                const [statusRes, playersRes] = await Promise.all([
-                    fetch('/api/tournament/status'),
-                    fetch('/api/players')
-                ]);
-
-                const status = await statusRes.json();
-                const players = await playersRes.json();
-
-                // Populate player dropdown
-                populatePlayerDropdown(players);
-
-                // Update player count and header
-                const playerCount = status.player_count || 9;
-                const totalRaces = status.total_races || 9;
-                const playersPerRace = status.players_per_race || 4;
-                
-                document.getElementById('headerSubtitle').textContent = `${playerCount} Players • ${totalRaces} Races • 1 Champion`;
-                
-                // Update "How It Works" section dynamically
-                updateHowItWorks(playersPerRace);
-                document.getElementById('totalPlayers').textContent = players.registered || 0;
-                document.getElementById('totalRaces').textContent = totalRaces;
-                
-                // Disable register button if all players registered
-                const registerBtn = document.getElementById('registerBtn');
-                if (players.available === 0) {
-                    registerBtn.style.opacity = '0.5';
-                    registerBtn.style.pointerEvents = 'none';
-                    registerBtn.innerHTML = '✓ All Players Registered';
-                } else {
-                    registerBtn.style.opacity = '1';
-                    registerBtn.style.pointerEvents = 'auto';
-                    registerBtn.innerHTML = '📝 Register as Player';
-                }
-
-                if (status.initialized !== false) {
-                    document.getElementById('racesCompleted').textContent = status.races_completed || 0;
-                    document.getElementById('racesRemaining').textContent = totalRaces - (status.races_completed || 0);
-
-                    const noticeDiv = document.getElementById('tournamentNotice');
-                    
-                    if (status.winner) {
-                        noticeDiv.innerHTML = `
-                            <div class="alert alert-success">
-                                <strong>🏆 Tournament Complete!</strong><br>
-                                Winner: <strong>${status.winner.name}</strong>
-                            </div>
-                        `;
-                    } else if (players.available === 0) {
-                        noticeDiv.innerHTML = `
-                            <div class="alert alert-info">
-                                <strong>✅ All ${playerCount} players registered!</strong> The tournament is ready to begin.
-                            </div>
-                        `;
-                    } else if (players.registered > 0) {
-                        noticeDiv.innerHTML = `
-                            <div class="alert alert-warning">
-                                <strong>⏳ ${players.available} slots remaining</strong> - Waiting for players to register.
-                            </div>
-                        `;
-                    } else {
-                        noticeDiv.innerHTML = `
-                            <div class="alert alert-info">
-                                <strong>🎮 Tournament initialized!</strong> Players can now register.
-                            </div>
-                        `;
-                    }
-                } else {
-                    document.getElementById('tournamentNotice').innerHTML = `
-                        <div class="alert alert-warning">
-                            <strong>⚠️ Tournament not initialized.</strong> Organizer needs to initialize the tournament first.
-                        </div>
-                    `;
-                }
-
-                document.getElementById('tournamentStatus').classList.add('hidden');
-                document.getElementById('statusContent').classList.remove('hidden');
-            } catch (error) {
-                console.error('Error loading status:', error);
-                document.getElementById('tournamentStatus').innerHTML = `
-                    <div class="alert alert-error">
-                        Unable to load tournament status. Please check your connection.
-                    </div>
-                `;
-            }
-        }
-
-        // Load status on page load
-        loadTournamentStatus();
-
-        // Refresh every 10 seconds
-        setInterval(loadTournamentStatus, 10000);
-    </script>
-</body>
+        <div class="format-grid">
+          <article class="format-card race">
+            <span class="format-index">01 / RACE</span>
+            <h3>Chase the flag.</h3>
+            <p>Four races each. Finish first, earn 25 points. Every place scores.</p>
+            <strong>100 points available</strong>
+          </article>
+          <article class="format-card solo">
+            <span class="format-index">02 / SOLO BATTLE</span>
+            <h3>Cause some chaos.</h3>
+            <p>Four Balloon Battles + four Coin Runners. Each pair's scores are averaged.</p>
+            <strong>100 points available</strong>
+          </article>
+          <article class="format-card team">
+            <span class="format-index">03 / TEAM BATTLE</span>
+            <h3>Find your partner.</h3>
+            <p>Four Renegade Roundups with four different partners. Win together, score together.</p>
+            <strong>100 points available</strong>
+          </article>
+        </div>
+      </section>
+      <section class="card section-gap">
+        <div class="section-heading">
+          <h2>The starting grid</h2>
+          <span class="eyebrow" id="rosterCaption">REGISTRATION</span>
+        </div>
+        <div id="playerGrid" class="player-grid"></div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <a class="brand-footer" href="/">TOLSMA KART <span>03</span></a>
+      <p>A little competition. A lot of good company.</p>
+      <a href="/organizer.html">Host controls ↗</a>
+    </footer>
+    <noscript>This tournament needs JavaScript enabled to show live updates.</noscript>
+  </body>
 </html>

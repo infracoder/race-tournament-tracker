@@ -1,307 +1,78 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <title>My Dashboard - Mario Kart Tournament</title>
-    <link rel="stylesheet" href="/css/styles.css">
-</head>
-<body>
-    <div class="header">
-        <h1>👤 Player Dashboard</h1>
-        <p id="playerInfo">Loading...</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ed3e37" />
+    <meta
+      name="description"
+      content="The Tolsma 3rd Annual Mario Kart Tournament. Follow your lineup, schedule and championship standings."
+    />
+    <title>My turn · Tolsma Kart 03</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script type="module" src="/js/player.js"></script>
+  </head>
+  <body data-page="player">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Tolsma Kart Championship home"
+          ><span class="checkered-mark" aria-hidden="true"></span
+          ><span>TOLSMA<span class="brand-sub">KART CHAMPIONSHIP</span></span
+          ><span class="brand-edition">03</span></a
+        >
+        <nav aria-label="Main navigation">
+          <a href="/">Race HQ</a><a href="/leaderboard.html">Standings</a
+          ><a href="/player.html" aria-current="page">My turn</a
+          ><a class="host-link" href="/organizer.html" aria-label="Host controls" title="Host controls">⚙</a>
+        </nav>
+      </div>
+    </header>
+    <div class="status-bar">
+      <span id="liveStatus" class="live-status">Connecting…</span
+      ><span class="status-event">THIRD ANNUAL <span aria-hidden="true">/</span> ONE BIG NIGHT</span>
     </div>
-
-    <div class="container">
-        <div id="loadingCard" class="card">
-            <div class="loading-container">
-                <div class="loading"></div>
-            </div>
+    <div id="connectionNotice" class="notice warning connection-notice" role="status" hidden></div>
+    <main id="main" class="container">
+      <section class="page-heading">
+        <span class="eyebrow">YOUR TOURNAMENT, AT A GLANCE</span>
+        <h1 id="playerHeading">Find your <span class="red-text">next turn.</span></h1>
+        <p id="playerSubtitle" class="intro">Select your name to see your schedule and points.</p>
+      </section>
+      <section id="playerChooser" class="card chooser">
+        <label for="playerSelect">Who's playing?</label
+        ><select id="playerSelect">
+          <option value="">Choose your name</option></select
+        ><button id="choosePlayer" class="btn primary">Show my dashboard →</button>
+      </section>
+      <div id="personalContent" hidden>
+        <section id="personalStats" class="personal-stats"></section>
+        <div class="two-col section-gap">
+          <div id="myNextEvent"></div>
+          <div id="globalEvent"></div>
         </div>
-
-        <div id="dashboardContent" class="hidden">
-            <!-- Player Stats -->
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">📊 My Stats</h2>
-                </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalPoints">0</div>
-                        <div class="stat-label">Total Points</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="racesCompleted">0</div>
-                        <div class="stat-label">Races Done</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="currentRank">-</div>
-                        <div class="stat-label">Current Rank</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="firstPlaces">0</div>
-                        <div class="stat-label">1st Places</div>
-                    </div>
-                </div>
-
-                <div class="grid grid-2 mt-20" id="placeStatsGrid">
-                    <div class="stat-card">
-                        <div class="stat-label">2nd Places</div>
-                        <div class="stat-value" style="font-size: 24px;" id="secondPlaces">0</div>
-                    </div>
-                    <div class="stat-card" id="thirdPlaceCard">
-                        <div class="stat-label">3rd Places</div>
-                        <div class="stat-value" style="font-size: 24px;" id="thirdPlaces">0</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Race Schedule -->
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">📅 My Race Schedule</h2>
-                </div>
-                
-                <ul id="scheduleList" class="schedule-list"></ul>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="card">
-                <div class="grid grid-2">
-                    <a href="/leaderboard.html" class="btn btn-secondary btn-block">
-                        🏆 View Leaderboard
-                    </a>
-                    <a href="/" class="btn btn-secondary btn-block">
-                        🏠 Home
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div id="errorCard" class="card hidden">
-            <div class="alert alert-error">
-                <strong>Error:</strong> <span id="errorMessage"></span>
-            </div>
-            <a href="/" class="btn btn-secondary btn-block mt-20">
-                ← Back to Home
-            </a>
-        </div>
-    </div>
-
-    <!-- Battle Modal -->
-    <div id="battleModal" class="battle-modal-overlay hidden">
-        <div class="battle-modal-content">
-            <div class="battle-title">🎮 BONUS BATTLE GAME! 🎮</div>
-            <div class="battle-stage" id="battleStageName">Loading...</div>
-            <div class="battle-subtitle">Selected Warriors:</div>
-            <div class="battle-players" id="battlePlayersList"></div>
-            <button class="battle-dismiss-btn" onclick="dismissBattle()">
-                DISMISS
-            </button>
-        </div>
-    </div>
-
-    <script>
-        let playerId = null;
-        let refreshInterval = null;
-        let battleCheckInterval = null;
-        let dismissedBattleRaceNumber = null;
-
-        function getPlayerIdFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('id');
-        }
-
-        async function loadPlayerData() {
-            playerId = getPlayerIdFromURL();
-
-            if (!playerId) {
-                showError('No player ID provided. Please register first.');
-                return;
-            }
-
-            try {
-                const [scheduleRes, leaderboardRes, statusRes] = await Promise.all([
-                    fetch(`/api/players/schedule/${playerId}`),
-                    fetch('/api/players/leaderboard'),
-                    fetch('/api/tournament/status')
-                ]);
-
-                if (!scheduleRes.ok) {
-                    throw new Error('Player not found');
-                }
-
-                const scheduleData = await scheduleRes.json();
-                const leaderboardData = await leaderboardRes.json();
-                const status = await statusRes.json();
-                const playersPerRace = status.players_per_race || 4;
-
-                // Update player info
-                const player = scheduleData.player;
-                const stats = scheduleData.stats;
-                
-                // Hide 3rd place stats if only 2 players per race
-                if (playersPerRace === 2) {
-                    document.getElementById('thirdPlaceCard').style.display = 'none';
-                    document.getElementById('placeStatsGrid').style.gridTemplateColumns = '1fr';
-                } else {
-                    document.getElementById('thirdPlaceCard').style.display = '';
-                    document.getElementById('placeStatsGrid').style.gridTemplateColumns = '';
-                }
-                
-                document.getElementById('playerInfo').textContent = player.name;
-
-                // Update stats
-                document.getElementById('totalPoints').textContent = stats.total_points;
-                document.getElementById('racesCompleted').textContent = 
-                    `${stats.races_completed}/${stats.total_races}`;
-                document.getElementById('firstPlaces').textContent = stats.firsts;
-                document.getElementById('secondPlaces').textContent = stats.seconds;
-                document.getElementById('thirdPlaces').textContent = stats.thirds;
-
-                // Find player rank
-                const playerRank = leaderboardData.standings.find(s => s.id === player.id);
-                document.getElementById('currentRank').textContent = 
-                    playerRank ? `#${playerRank.rank}` : '-';
-
-                // Render schedule
-                renderSchedule(scheduleData.schedule);
-
-                // Show dashboard
-                document.getElementById('loadingCard').classList.add('hidden');
-                document.getElementById('dashboardContent').classList.remove('hidden');
-            } catch (error) {
-                console.error('Error loading player data:', error);
-                showError(error.message || 'Failed to load player data');
-            }
-        }
-
-        function renderSchedule(schedule) {
-            const scheduleList = document.getElementById('scheduleList');
-            
-            if (schedule.length === 0) {
-                scheduleList.innerHTML = `
-                    <div class="alert alert-info">
-                        No races scheduled yet.
-                    </div>
-                `;
-                return;
-            }
-
-            scheduleList.innerHTML = schedule.map(race => {
-                const statusClass = race.completed ? 'completed' : '';
-                const statusBadge = race.completed 
-                    ? '<span class="race-status completed">✓ Complete</span>'
-                    : '<span class="race-status pending">⏳ Pending</span>';
-
-                return `
-                    <li class="schedule-item ${statusClass}">
-                        <div class="schedule-header">
-                            <div class="race-title">🏁 Race ${race.race_number}</div>
-                            ${statusBadge}
-                        </div>
-                        <div class="opponents-list">
-                            ${race.opponents.map(opp => `
-                                <span class="opponent-tag">
-                                    ${opp.name || 'TBD'}
-                                </span>
-                            `).join('')}
-                        </div>
-                    </li>
-                `;
-            }).join('');
-        }
-
-        function showError(message) {
-            document.getElementById('loadingCard').classList.add('hidden');
-            document.getElementById('errorMessage').textContent = message;
-            document.getElementById('errorCard').classList.remove('hidden');
-        }
-
-        // Check for active battle games
-        async function checkBattle() {
-            try {
-                const response = await fetch('/api/battle/current', {
-                    cache: 'no-store',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                
-                if (!response.ok) return;
-                
-                const data = await response.json();
-                
-                if (data.is_active && data.race_number !== dismissedBattleRaceNumber) {
-                    showBattleModal(data);
-                } else if (!data.is_active) {
-                    hideBattleModal();
-                }
-            } catch (error) {
-                console.error('Error checking battle:', error);
-            }
-        }
-
-        function showBattleModal(battleData) {
-            const modal = document.getElementById('battleModal');
-            const stageName = document.getElementById('battleStageName');
-            const playersList = document.getElementById('battlePlayersList');
-            
-            // Set stage name
-            stageName.textContent = battleData.stage_name;
-            
-            // Render players
-            playersList.innerHTML = battleData.players.map(player => `
-                <div class="battle-player">
-                    <div class="battle-player-letter">${player.letter}</div>
-                    <div class="battle-player-name">${player.name || 'TBD'}</div>
-                </div>
-            `).join('');
-            
-            // Show modal
-            modal.classList.remove('hidden');
-        }
-
-        function hideBattleModal() {
-            const modal = document.getElementById('battleModal');
-            modal.classList.add('hidden');
-        }
-
-        function dismissBattle() {
-            // Get current battle info to store dismissed race number
-            fetch('/api/battle/current', { cache: 'no-store' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.is_active) {
-                        dismissedBattleRaceNumber = data.race_number;
-                    }
-                    hideBattleModal();
-                })
-                .catch(() => {
-                    hideBattleModal();
-                });
-        }
-
-        // Load data on page load
-        loadPlayerData();
-
-        // Refresh every 10 seconds
-        refreshInterval = setInterval(loadPlayerData, 10000);
-        
-        // Check for battles every 5 seconds
-        checkBattle(); // Initial check
-        battleCheckInterval = setInterval(checkBattle, 5000);
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
-            }
-            if (battleCheckInterval) {
-                clearInterval(battleCheckInterval);
-            }
-        });
-    </script>
-</body>
+        <section id="playerChampion" class="champion-banner section-gap" hidden></section>
+        <section class="card section-gap">
+          <div class="section-heading">
+            <h2>My evening</h2>
+            <span id="myProgress" class="eyebrow"></span>
+          </div>
+          <div id="mySchedule"></div>
+        </section>
+        <section class="card section-gap">
+          <div class="section-heading">
+            <h2>The competition</h2>
+            <a class="text-link" href="/leaderboard.html">Full standings →</a>
+          </div>
+          <div id="myStandings"></div>
+        </section>
+      </div>
+    </main>
+    <footer class="site-footer">
+      <a class="brand-footer" href="/">TOLSMA KART <span>03</span></a>
+      <p>A little competition. A lot of good company.</p>
+      <a href="/organizer.html">Host controls ↗</a>
+    </footer>
+    <noscript>This tournament needs JavaScript enabled to show live updates.</noscript>
+  </body>
 </html>
