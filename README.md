@@ -1,271 +1,99 @@
-# 🏁 Mario Kart Tournament Tracker
+# Tolsma Kart Championship 03
 
-A mobile-friendly web application for managing Mario Kart tournaments with configurable player counts (8-10 players), dynamic scheduling, and F1-style scoring.
+Run the third annual Mario Kart 8 Deluxe tournament from one shared website. Nine competitors play on one Switch, four at a time, while a separate host records results. Players use iPhone or Android browsers to join, follow their turns, and watch the standings.
 
-## Features
+## Start locally
 
-- **⚙️ Configurable Player Count**: Support for 8, 9, or 10 players per tournament
-- **🎮 Player Registration**: Players register and receive assigned letters (A-H, A-I, or A-J)
-- **📅 Smart Scheduling**: Dynamic schedule generation ensures each player races exactly 4 times (4 players per race)
-- **🏆 F1 Scoring System**: 25/18/15/12 points for 1st-4th place
-- **📊 Live Leaderboard**: Real-time standings with automatic tiebreakers
-- **📱 Mobile-First Design**: Optimized for phones and tablets
-- **🔐 Organizer Controls**: PIN-protected race result entry
-- **🎉 Winner Celebration**: Animated confetti and winner banner
+Use Node.js 24 LTS (also recorded in `.nvmrc`).
 
-## Quick Start
-
-### Option 1: Direct (npm)
-
-```bash
-# Install dependencies
-npm install
-
-# Create .env file
+```sh
+npm ci
 cp .env.example .env
-# Edit .env and set your ORGANIZER_PIN
+```
 
-# Start development server
+Set your organizer PIN in `.env`, then start the server:
+
+```sh
+npm start
+```
+
+Open [Race HQ](http://localhost:3000) and [Host controls](http://localhost:3000/organizer.html). Log in, select **Set up tournament**, and share the join QR or link. Once nine players have registered, select **Start the tournament**.
+
+The server listens on all network interfaces. Phones need to be on the host computer's WiFi, with access to its port. `localhost` on a phone points to that phone, so use the computer's WiFi address instead.
+
+## Join address
+
+Set `PUBLIC_BASE_URL` to the address phones can reach, especially with Docker or multiple network adapters:
+
+```dotenv
+PORT=3000
+ORGANIZER_PIN=your-private-pin
+DB_FILE=./tournament.db
+PUBLIC_BASE_URL=http://192.168.1.100:3000
+```
+
+Use an HTTP(S) origin without a path or credentials. A working local hostname such as `http://mariokart.local:3000` also works if your network resolves it. When omitted, direct startup uses the first external IPv4 address; confirm that it is your WiFi adapter. The join link includes the tournament ID so an old link cannot register someone into a replacement event.
+
+A returning player can reopen their saved dashboard or select their existing name on the join page. Retrying a registration after losing the reply recovers the same spot. Browser storage remembers the selection; it is not a private player account. Only the host can change results.
+
+## The evening
+
+There are **27 scheduled events and 36 gameplay rounds**:
+
+| Category | Events | Each competitor plays | Scoring |
+| --- | ---: | --- | --- |
+| Race | 9 | 4 races | 25 / 18 / 15 / 12 by finish |
+| Solo battle | 9 | 4 Balloon Battles + 4 Coin Runners | Average the two round scores in each event |
+| Team battle | 9 | 4 Renegade Roundups, two vs two | Winners 25 each; losers 12 each |
+
+Every competitor has four different teammates, faces each other competitor exactly once in team battles, and plays twice as cops and twice as robbers. The queue reduces long waits while keeping these participation rules. The same saved lineup survives refreshes, corrections, and restarts.
+
+Each category has a 100-point ceiling, making the overall maximum **300 points**. Positions are relative to the four human competitors. Tied solo finishes share the points for the occupied places: two tied for first receive `(25 + 18) / 2 = 21.5` each. The host enters `1st, 1st, 3rd, 4th`. Scores use exact integer units internally, including three-way ties; the screen displays up to two decimal places.
+
+A solo event keeps the same four players for Balloon Battle followed by Coin Runners. The first result and its wins are saved immediately, but championship points remain pending until both rounds are recorded. For example, first then fourth earns `(25 + 12) / 2 = 18.5` points.
+
+The planning estimate is **218 minutes**, using six minutes per race/team event, ten per paired solo event, and twenty minutes of breaks. Actual play settings and controller changes need a Switch rehearsal. The host controls progression; there is no automatic timer.
+
+## Run and finish
+
+- Call the names and controller numbers under **Playing Now**. **Up Next** lets the next group prepare.
+- Record four finishing positions, shared solo positions, or the winning team. Select **Save result**, then **Next event** once all rounds are saved.
+- Select **Take a break** and **Resume play** to pause without changing the queue.
+- Use **Correct a result** to replace a saved outcome. Points and wins recalculate without duplicate awards.
+- After all events, confirm the points leader. Equal totals share a rank. If first place is tied, run a playoff and select its winner from the tied leaders.
+- Completing the tournament reveals the champion on the shared screens. An effective correction afterward withdraws the declaration until the host confirms it again.
+
+Host sessions last one hour and end on server restart. If a session expires during entry, log back in to recover the draft. Concurrent changes preserve the draft and require reloading the saved result; the app does not replay a stale submission automatically.
+
+**Gift-card prizes are planned separately.** Configurable images, private amounts, prize allocation, and their final reveal are not implemented in this core release.
+
+## Persistence and older tournaments
+
+Ordinary startup adds championship tables without resetting existing data. A new championship archives the old event in the database, changes the active event, and rejects changes from old links. There is currently no archive browsing screen.
+
+The older configurable race tournament tables and `/api/tournament`, `/api/players`, `/api/races`, and `/api/battle` routes remain available for compatibility. The new screens use `/api/championship` and the nine-player format above. The legacy `npm run db:reset` command seeds only the older tournament; it does not set up the new championship. Avoid it during a real event.
+
+Back up the SQLite file while the server is stopped before moving or upgrading an event. Keep `DB_FILE` pointed at the same persistent file to resume it.
+
+## Docker
+
+```sh
+cp .env.example .env
+# Set ORGANIZER_PIN and PUBLIC_BASE_URL in .env first.
+docker compose up --build -d
+```
+
+The image uses Node 24 and stores its database in the mounted `./data` directory. The join origin must name the host computer, not the container's internal address. `docker compose down` stops the service while retaining `./data`; do not delete that directory to upgrade.
+
+## Development and verification
+
+```sh
 npm run dev
-
-# Or start production server
-npm start
+npm test
+npx playwright install chromium webkit
+npm run test:browser
 ```
 
-Server will be available at:
-- **Local**: http://localhost:3000
-- **Network**: http://YOUR_LOCAL_IP:3000 (shown in terminal)
+Unit, storage, API, and full-event tests create disposable SQLite files. Browser tests use a separate server on port 3108. They do not open or reset the default tournament database. The classic generator remains covered by `npm run test:schedule`.
 
-### Option 2: Docker
-
-```bash
-# Set your organizer PIN
-export ORGANIZER_PIN=your_secret_pin
-
-# Build and start
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Stop
-docker compose down
-```
-
-## Initial Setup
-
-1. **Initialize Tournament** (Organizer only):
-   - Visit `/organizer.html`
-   - Login with PIN
-   - Click "Initialize Tournament"
-   - Select number of players (8, 9, or 10)
-   - Tournament is configured with dynamic schedule
-
-2. **Player Registration**:
-   - Share the network URL with players
-   - Players visit `/register.html`
-   - Each player registers with their name
-   - Players receive letters based on configuration (A-H, A-I, or A-J)
-
-3. **Run Races**:
-   - Organizer enters results after each race
-   - Leaderboard updates automatically
-   - Number of races matches player count (8, 9, or 10 races)
-
-4. **Declare Winner**:
-   - After all races are complete, click "Complete Tournament"
-   - Winner is displayed with confetti! 🎉
-
-## Tournament Rules
-
-### Scoring (F1 System)
-- 1st Place: **25 points**
-- 2nd Place: **18 points**
-- 3rd Place: **15 points**
-- 4th Place: **12 points**
-
-### Race Schedule
-
-Schedules are **dynamically generated** at tournament initialization to ensure fairness:
-
-- **8 players** → 8 races (letters A-H)
-- **9 players** → 9 races (letters A-I)  
-- **10 players** → 10 races (letters A-J)
-
-Each player races **exactly 4 times** with 4 players per race.
-
-**Schedule Generation Goals:**
-1. **Fair distribution**: Every player races exactly 4 times
-2. **Minimize repeats**: Reduce the number of times players race against the same opponents
-3. **Balance**: Avoid back-to-back races when possible
-4. **Deterministic**: Same player count always produces the same schedule
-
-### Tiebreakers
-1. Total points
-2. Most 1st places
-3. Most 2nd places
-4. Most 3rd places
-5. Most 4th places
-
-## API Endpoints
-
-### Public Endpoints
-- `GET /api/tournament/status` - Tournament info
-- `GET /api/players` - List registered players
-- `GET /api/players/schedule/:playerId` - Player's schedule
-- `GET /api/leaderboard` - Current standings
-- `GET /api/races` - All races
-
-### Protected Endpoints (Organizer Only)
-- `POST /api/organizer/login` - Login with PIN
-- `POST /api/tournament/init` - Initialize/reset tournament (accepts `player_count: 8|9|10` in body)
-- `POST /api/tournament/complete` - Declare winner
-- `POST /api/race/result` - Submit race results
-
-## Pages
-
-- **/** - Home / Role selection
-- **/register.html** - Player registration
-- **/player.html?id=X** - Player dashboard
-- **/organizer.html** - Organizer dashboard
-- **/leaderboard.html** - Public leaderboard
-
-## Development
-
-### Scripts
-
-```bash
-# Development mode (auto-restart on changes)
-npm run dev
-
-# Production mode
-npm start
-
-# Reset database (uses default or PLAYER_COUNT env var)
-npm run db:reset
-
-# Reset with specific player count
-PLAYER_COUNT=10 npm run db:reset
-
-# Run schedule generator tests
-npm run test:schedule
-```
-
-### Project Structure
-
-```
-mariokart/
-├── server.js              # Express server
-├── database.js            # SQLite operations with dynamic seeding
-├── lib/
-│   ├── schedule-generator.js      # Dynamic schedule generation
-│   └── schedule-generator.test.js # Schedule tests
-├── routes/
-│   ├── organizer.js       # Auth routes
-│   ├── tournament.js      # Tournament management
-│   ├── players.js         # Registration & schedules
-│   └── races.js           # Result submission
-├── public/
-│   ├── index.html         # Landing page
-│   ├── register.html      # Registration
-│   ├── player.html        # Player dashboard
-│   ├── organizer.html     # Organizer dashboard
-│   ├── leaderboard.html   # Public leaderboard
-│   └── css/styles.css     # Mario Kart theme
-└── scripts/
-    └── reset-db.js        # Database reset utility
-```
-
-## Database Schema
-
-- **tournament** - Single row with status, winner, `player_count`, and `total_races`
-- **players** - Dynamic player count (8-10) with letters A-H/I/J
-- **races** - Dynamic race count (8-10) with 4 participants each
-- **results** - Individual race placements and points
-
-## Configuration
-
-### Environment Variables
-
-```env
-PORT=3000                    # Server port
-ORGANIZER_PIN=1234          # Organizer access PIN
-DB_FILE=./tournament.db     # Database location
-PLAYER_COUNT=9              # Default player count (8, 9, or 10) - optional
-```
-
-### Configuration Priority
-
-Player count is determined in the following order:
-1. **Request body** - Organizer selects during initialization (highest priority)
-2. **Config file** - `config/tournament-config.json` with `{"player_count": 10}`
-3. **Environment variable** - `PLAYER_COUNT=8`
-4. **Default** - 9 players (fallback)
-
-### Mobile Optimization
-
-- Large touch targets (minimum 54px)
-- Prevents zoom on iOS
-- Auto-refresh every 5-10 seconds
-- Responsive grid layouts
-- Touch-friendly form inputs
-
-## Network Access
-
-### Finding Your IP Address
-
-**Mac**:
-```bash
-ifconfig | grep "inet " | grep -v 127.0.0.1
-```
-
-**Linux**:
-```bash
-ip addr show | grep "inet " | grep -v 127.0.0.1
-```
-
-**Windows**:
-```cmd
-ipconfig
-```
-
-Share `http://YOUR_IP:3000` with players on the same WiFi network.
-
-## Troubleshooting
-
-### Players Can't Connect
-- Ensure all devices are on the same WiFi network
-- Check firewall settings (allow port 3000)
-- Verify server is bound to `0.0.0.0` (not `localhost`)
-
-### Database Issues
-```bash
-# Reset database
-npm run db:reset
-
-# Or manually delete and restart
-rm tournament.db
-npm start
-```
-
-### Port Already in Use
-```bash
-# Change port in .env
-PORT=3001
-```
-
-## Tech Stack
-
-- **Backend**: Node.js + Express
-- **Database**: SQLite3
-- **Frontend**: Vanilla JavaScript (no frameworks!)
-- **Styling**: Custom CSS with Mario Kart theme
-- **Deployment**: Docker or npm
-
-## License
-
-MIT
-
-## Credits
-
-Built with ❤️ for epic Mario Kart tournaments! 🏎️🏁
+See [TESTING.md](TESTING.md) for verification results, container smoke steps, real-phone checks, and the console pacing rehearsal. No lint or TypeScript check is configured.

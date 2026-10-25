@@ -34,6 +34,7 @@ test('registration is atomic, retry-safe, and snapshots expose no private fields
   const created = await request('/api/championship', { expectedActiveId: null, seed: 'api' });
   assert.equal(created.status, 201);
   const id = created.body.championship.id;
+  assert.equal(created.body.join_url, `http://mariokart.local:3000/register.html?t=${id}`);
   const joined = await Promise.all(Array.from({ length: 9 }, (_, i) => request(`/api/championship/${id}/players`, { name: `Player ${i + 1}`, registrationToken: `registration-token-${i}` }, false)));
   assert.ok(joined.every(r => r.status === 200));
   assert.equal(new Set(joined.map(r => r.body.player.id)).size, 9);
@@ -50,6 +51,19 @@ test('registration is atomic, retry-safe, and snapshots expose no private fields
   const stale = await request(`/api/championship/${id}/pause`, { expectedRevision: 0, paused: true }, true, 'PUT');
   assert.equal(stale.status, 409);
   assert.equal(stale.body.snapshot.revision, started.body.revision);
+});
+
+test('join QR is served without exposing a PIN or accepting a request host as its origin', async t => {
+  const { request, base } = await fixture(t);
+  const created = await request('/api/championship', { expectedActiveId: null, seed: 'qr-origin' });
+  const response = await fetch(base + '/api/championship/current/qr.svg', { headers: { Host: 'attacker.example' } });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /image\/svg\+xml/);
+  assert.match(response.headers.get('cache-control'), /no-store/);
+  assert.match(await response.text(), /<svg/);
+  const current = await request('/api/championship/current');
+  assert.equal(current.body.join_url, created.body.join_url);
+  assert.equal(current.body.join_url.includes('attacker.example'), false);
 });
 
 test('organizer sessions and data are scoped to each application and expire safely', async t => {
