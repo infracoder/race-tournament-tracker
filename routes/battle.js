@@ -1,6 +1,7 @@
 const express = require('express');
+function createRouter(database) {
 const router = express.Router();
-const { get, all } = require('../database');
+const { get, all } = database;
 
 // GET /api/battle/current - Get current active battle game
 router.get('/current', async (req, res) => {
@@ -116,4 +117,6 @@ router.get('/by-race/:raceNumber', async (req, res) => {
   }
 });
 
-module.exports = router;
+return router;
+}
+module.exports = createRouter;

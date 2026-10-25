@@ -1,6 +1,7 @@
 const express = require('express');
+function createRouter(database) {
 const router = express.Router();
-const { run, get, all, transaction } = require('../database');
+const { run, get, all, transaction } = database;
 
 /**
  * Get points mapping based on players per race
@@ -168,5 +169,6 @@ async function submitRaceResult(req, res) {
   }
 }
 
-module.exports = router;
-module.exports.submitRaceResult = submitRaceResult;
+return { router, submitRaceResult };
+}
+module.exports = createRouter;

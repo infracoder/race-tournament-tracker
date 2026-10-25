@@ -1,6 +1,7 @@
 const express = require('express');
+function createRouter(database) {
 const router = express.Router();
-const { run, get, all } = require('../database');
+const { run, get, all } = database;
 
 // POST /api/players/register - Register a new player
 router.post('/register', async (req, res) => {
@@ -199,4 +200,6 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
-module.exports = router;
+return router;
+}
+module.exports = createRouter;

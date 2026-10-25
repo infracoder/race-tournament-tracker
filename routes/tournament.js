@@ -1,6 +1,7 @@
 const express = require('express');
+function createRouter(database) {
 const router = express.Router();
-const { run, get, all, seedTournament } = require('../database');
+const { run, get, all, seedTournament } = database;
 
 // POST /api/tournament/init - Initialize/reset tournament (protected)
 router.post('/init', async (req, res) => {
@@ -155,4 +156,6 @@ router.post('/complete', async (req, res) => {
   }
 });
 
-module.exports = router;
+return router;
+}
+module.exports = createRouter;
