@@ -2,6 +2,14 @@
 set -euo pipefail
 
 PID_FILE="/tmp/mariokart-mdns.pid"
+JOB_LABEL="com.mariokart.mdns"
+
+if launchctl list "$JOB_LABEL" >/dev/null 2>&1; then
+  launchctl remove "$JOB_LABEL"
+  rm -f "$PID_FILE"
+  echo "mDNS advertisement stopped."
+  exit 0
+fi
 
 if [ ! -f "$PID_FILE" ]; then
   echo "No mDNS PID file found. Nothing to stop."

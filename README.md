@@ -105,6 +105,10 @@ docker compose up --build -d
 
 The image uses Node 24 and stores its database in the mounted `./data` directory. The join origin must name the host computer, not the container's internal address. `docker compose down` stops the service while retaining `./data`; do not delete that directory to upgrade.
 
+On the Mac host, run `npm run mdns:start` to advertise **http://mariokart.local:3000** to phones on the same WiFi. `npm run mdns:stop` removes the advertisement. The publisher runs as a managed service for the current login session; start it again after restarting the Mac. `npm run docker:up` starts Docker and the local-name service together.
+
+Use the same address on a phone after registering so its private player access stays remembered.
+
 ## Development and verification
 
 ```sh
