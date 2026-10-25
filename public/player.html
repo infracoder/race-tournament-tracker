@@ -46,6 +46,7 @@
         ><button id="choosePlayer" class="btn primary">Show my dashboard →</button>
       </section>
       <div id="personalContent" hidden>
+        <div id="withdrawalStatus" class="notice warning" role="status" hidden></div>
         <section id="personalStats" class="personal-stats"></section>
         <div class="two-col section-gap">
           <div id="myNextEvent"></div>
@@ -73,6 +74,15 @@
             <a class="text-link" href="/leaderboard.html">Full standings →</a>
           </div>
           <div id="myStandings"></div>
+        </section>
+        <section id="withdrawalPanel" class="card section-gap" hidden>
+          <h2>Need to step away?</h2>
+          <p class="muted">
+            Withdraw to leave your remaining seats empty. You keep the points you earned and leave
+            the race for champion. Your consolation prize stays sealed until the tournament ends.
+          </p>
+          <button id="withdrawTournament" class="btn secondary">Withdraw from tournament</button>
+          <div id="withdrawalMessage" class="notice" role="status" hidden></div>
         </section>
       </div>
     </main>

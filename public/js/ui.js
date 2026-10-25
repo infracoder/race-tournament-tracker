@@ -41,7 +41,7 @@ export function mount(render) {
               registration: 'Registration open',
               running: 'Live tournament',
               awaiting_champion: 'Final results',
-              completed: 'Champion crowned'
+              completed: c.winner_id ? 'Champion crowned' : 'Tournament complete'
             }[c.status];
       $('#liveStatus').textContent = status;
       $('#liveStatus').dataset.state = c?.paused ? 'paused' : c?.status || 'waiting';
@@ -69,11 +69,11 @@ export function roster(slot, meId) {
     item.append(element('span', `player-letter player-${p.letter.toLowerCase()}`, p.letter));
     const copy = element('div', 'racer-copy');
     copy.append(
-      element('strong', '', p.name || `Player ${p.letter}`),
+      element('strong', '', p.withdrawn_at ? `Empty seat · ${p.name}` : p.name || `Player ${p.letter}`),
       element(
         'small',
         '',
-        `Controller ${p.controller}${p.side ? ` · ${p.side === 'cops' ? 'Cops' : 'Robbers'}` : ''}`
+        p.withdrawn_at ? 'Withdrawn' : `Controller ${p.controller}${p.side ? ` · ${p.side === 'cops' ? 'Cops' : 'Robbers'}` : ''}`
       )
     );
     item.append(copy);
@@ -115,15 +115,19 @@ export function eventCard(
         ? 'Renegade Roundup'
         : 'Race time';
   card.append(element('div', 'mode-tag', labels[slot.category]), element('h2', '', title));
-  const description = paused
-    ? 'On a break. The lineup stays the same.'
-    : slot.completed
-      ? 'Results saved. Waiting for the host to advance.'
-      : slot.category === 'solo'
-        ? `Same four players for both rounds${activeRound ? ` · round ${activeRound.order} of 2` : ''}.`
-        : slot.category === 'team'
-          ? 'Two vs two. Win together, score together.'
-          : 'Four players. One finish line.';
+  const remaining = slot.participants.filter((p) => !p.withdrawn_at);
+  const reduced = remaining.length < 4;
+  let description;
+  if (slot.rounds.every((r) => r.skipped)) description = 'Skipped. Every scheduled player has withdrawn.';
+  else if (paused) description = 'On a break. The lineup stays the same.';
+  else if (slot.completed) description = 'Results saved. Waiting for the host to advance.';
+  else if (reduced && slot.category === 'team') {
+    const cops = remaining.filter((p) => p.side === 'cops').length;
+    description = `${cops} cops vs ${remaining.length - cops} robbers. Empty seats stay empty; an empty side forfeits.`;
+  } else if (reduced) description = `${remaining.length} players remaining. Empty seats stay empty; rank the remaining players only.`;
+  else if (slot.category === 'solo') description = `Same four players for both rounds${activeRound ? ` · round ${activeRound.order} of 2` : ''}.`;
+  else if (slot.category === 'team') description = 'Two vs two. Win together, score together.';
+  else description = 'Four players. One finish line.';
   card.append(element('p', 'event-description', description), roster(slot, meId));
   if (slot.category === 'solo' && !slot.completed && slot.rounds[0].completed) {
     const pending = element('div', 'pending-result');
@@ -161,12 +165,13 @@ export function standingsTable(state, meId, limit) {
   const body = element('tbody');
   for (const p of state.standings.slice(0, limit || 9)) {
     const row = element('tr', p.id === meId ? 'my-row' : '');
-    row.append(element('td', 'rank', String(p.rank).padStart(2, '0')));
+    row.append(element('td', 'rank', p.withdrawn_at ? '—' : String(p.rank).padStart(2, '0')));
     const playerCell = element('td');
     const link = element('a', 'player-link', p.name);
     link.href = playerLink(state.championship.id, p.id);
     playerCell.append(
       link,
+      ...(p.withdrawn_at ? [element('small', 'win-count', 'Withdrawn')] : []),
       element(
         'small',
         'win-count',
@@ -205,13 +210,14 @@ export function scheduleList(state, meId) {
             : 'Race'
       )
     );
-    copy.append(element('small', '', slot.participants.map((p) => p.name || p.letter).join(' · ')));
+    copy.append(element('small', '', slot.participants.map((p) => `${p.name || p.letter}${p.withdrawn_at ? ' (withdrawn)' : ''}`).join(' · ')));
+    const withdrawnSeat = meId && slot.participants.find((p) => p.player_id === meId)?.withdrawn_at;
     item.append(
       copy,
       element(
         'span',
         `status-tag ${slot.category}`,
-        slot.completed ? 'Complete' : current ? 'Now playing' : labels[slot.category]
+        slot.rounds.every((r) => r.skipped) ? 'Skipped' : slot.completed ? 'Complete' : withdrawnSeat ? 'Withdrawn' : current ? 'Now playing' : labels[slot.category]
       )
     );
     list.append(item);
@@ -220,12 +226,12 @@ export function scheduleList(state, meId) {
 }
 
 export function fillPlayerSelect(select, players, placeholder = 'Choose your name') {
-  const signature = JSON.stringify(players.map((p) => [p.id, p.name]));
+  const signature = JSON.stringify(players.map((p) => [p.id, p.name, p.withdrawn_at]));
   if (select.dataset.players === signature) return;
   const value = select.value;
   select.replaceChildren(
     new Option(placeholder, ''),
-    ...players.filter((p) => p.name).map((p) => new Option(`${p.name} · Player ${p.letter}`, p.id))
+    ...players.filter((p) => p.name).map((p) => new Option(`${p.name} · Player ${p.letter}${p.withdrawn_at ? ' · Withdrawn' : ''}`, p.id))
   );
   select.value = value;
   select.dataset.players = signature;

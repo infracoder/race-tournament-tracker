@@ -90,7 +90,7 @@ function renderPrize(result) {
   $('#sealedPrize').hidden = true;
   $('#revealedPrize').hidden = false;
   $('#prizePlayerName').textContent = `${result.player.name}, you earned this.`;
-  $('#prizePlacement').textContent = `Finishing place ${result.award.place} · Tolsma Kart Championship 03`;
+  $('#prizePlacement').textContent = `${result.award.kind === 'consolation' ? 'Consolation prize' : `Finishing place ${result.award.place}`} · Tolsma Kart Championship 03`;
   $('#prizeAmount').textContent = money(result.award.amount_cents, result.award.currency);
   if (firstReveal) $('#prizePlayerName').focus({ preventScroll: true });
   clearImages();
@@ -170,7 +170,9 @@ mount((next) => {
     ? 'This link belongs to an earlier tournament. Ask your host for the current private prize link.'
     : complete
       ? 'One last surprise from your host. Open it to see your prize and pick a gift card.'
-      : 'Keep racing. Your host will unlock your surprise when the tournament is complete.';
+      : next.players?.find((p) => p.id === playerId)?.withdrawn_at
+        ? 'Your consolation prize stays sealed until your host completes the tournament.'
+        : 'Keep racing. Your host will unlock your surprise when the tournament is complete.';
   if (complete && opened && next.revision > loadedRevision) loadPrize();
 });
 

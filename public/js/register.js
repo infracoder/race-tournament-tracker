@@ -23,7 +23,7 @@ const client = mount((value) => {
   $('#registeredPlayers').replaceChildren(
     ...(state.players || [])
       .filter((p) => p.name)
-      .map((p) => element('span', 'compact-player', `${p.letter} · ${p.name}`))
+      .map((p) => element('span', 'compact-player', `${p.letter} · ${p.name}${p.withdrawn_at ? ' · Withdrawn' : ''}`))
   );
 });
 

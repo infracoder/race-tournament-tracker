@@ -43,7 +43,10 @@ const roundIn = (snapshot, id) =>
   snapshot?.slots
     ?.flatMap((slot) => slot.rounds.map((round) => ({ slot, round })))
     .find((item) => item.round.id === id);
-const signature = (round) => JSON.stringify([round.completed, round.winning_side, round.results]);
+const participantsFor = (slot, round) => slot.participants.filter((p) => round.completed
+  ? round.results.some((r) => r.player_id === p.player_id)
+  : !p.withdrawn_at);
+const signature = (slot, round) => JSON.stringify([round.completed, round.winning_side, round.results, participantsFor(slot, round).map((p) => p.player_id)]);
 
 function setAuthenticated(value) {
   authenticationVersion++;
@@ -90,26 +93,28 @@ function api(action, body = {}, method = 'POST') {
 function buildFields(slot, round) {
   const fields = $('#resultFields');
   fields.replaceChildren();
+  const participants = participantsFor(slot, round);
   if (round.mode === 'renegade') {
     fields.append(
-      element('p', 'result-guidance', 'Select the winning team. Every teammate earns the same points.')
+      element('p', 'result-guidance', 'Select the winning side. Remaining teammates earn the same points. An empty side forfeits.')
     );
     for (const side of ['cops', 'robbers']) {
+      const members = participants.filter((p) => p.side === side);
+      if (!members.length) continue;
       const label = element('label', 'team-choice');
       const input = element('input');
       input.type = 'radio';
       input.name = 'winningSide';
       input.value = side;
       input.required = true;
-      input.checked = round.winning_side === side;
+      input.checked = round.winning_side === side || participants.every((p) => p.side === side);
       label.append(
         input,
         document.createTextNode(`${side === 'cops' ? 'Cops' : 'Robbers'} win`),
         element(
           'small',
           '',
-          slot.participants
-            .filter((p) => p.side === side)
+          members
             .map((p) => p.name)
             .join(' + ')
         )
@@ -126,7 +131,7 @@ function buildFields(slot, round) {
           : 'Enter the final standings. For a tie, choose the same position (for example: 1st, 1st, 3rd, 4th).'
       )
     );
-    for (const player of slot.participants) {
+    for (const player of participants) {
       const row = element('div', 'result-row');
       const label = element('label', '', `${player.name} finish`);
       const select = element('select');
@@ -135,7 +140,7 @@ function buildFields(slot, round) {
       select.required = true;
       select.append(
         new Option('Choose…', ''),
-        ...['1st', '2nd', '3rd', '4th'].map((label, index) => new Option(label, String(index + 1)))
+        ...['1st', '2nd', '3rd', '4th'].slice(0, participants.length).map((label, index) => new Option(label, String(index + 1)))
       );
       select.value = String(round.results.find((r) => r.player_id === player.player_id)?.rank || '');
       label.htmlFor = select.id;
@@ -152,14 +157,14 @@ function renderEditor() {
     (!target ||
       draft?.roundId !== target.round.id ||
       draft.championshipId !== state.championship.id ||
-      draft.source !== signature(target.round))
+      draft.source !== signature(target.slot, target.round))
   ) {
     draft = target
       ? {
           championshipId: state.championship.id,
           roundId: target.round.id,
           revision: state.revision,
-          source: signature(target.round),
+          source: signature(target.slot, target.round),
           ...target,
           dirty: false
         }
@@ -223,7 +228,7 @@ function render() {
         registration: 'Registration open',
         running: c.paused ? 'Play paused' : 'Tournament in progress',
         awaiting_champion: 'All events complete',
-        completed: 'Champion crowned'
+        completed: c.winner_id ? 'Champion crowned' : 'Tournament complete'
       }[c.status];
   $('#hostProgress').textContent = initialized
     ? `${state.slots_completed} / 27 events · ${state.rounds_completed} / 36 rounds`
@@ -248,7 +253,7 @@ function render() {
       const row = element('div', `grid-player ${p.name ? '' : 'unclaimed'}`);
       row.append(
         element('span', `player-letter player-${p.letter.toLowerCase()}`, p.letter),
-        element('span', '', p.name || 'Open spot')
+        element('span', '', `${p.name || 'Open spot'}${p.withdrawn_at ? ' · Withdrawn' : ''}`)
       );
       return row;
     })
@@ -263,7 +268,7 @@ function render() {
 
   const savedRounds = state.slots.flatMap((slot) =>
     slot.rounds
-      .filter((round) => round.completed)
+      .filter((round) => round.completed && !round.skipped)
       .map((round) => [round.id, `Event ${String(slot.position).padStart(2, '0')} · ${labels[round.mode]}`])
   );
   const select = $('#correctionRound');
@@ -304,7 +309,8 @@ function renderFinish() {
     ? `First place is tied at ${points(leaders[0].total_units)} points. Run your playoff, then record its winner here.`
     : leaders.length
       ? `${leaders[0].name} leads with ${points(leaders[0].total_units)} points. Complete the tournament to reveal your champion to everyone.`
-      : '';
+      : 'Everyone has withdrawn. Complete the tournament to unlock their consolation prizes; no champion will be crowned.';
+  $('#completeTournament').textContent = leaders.length ? 'Complete tournament & reveal champion →' : 'Complete tournament';
   const groups = completion.ready ? completion.playoffs : [];
   const signature = JSON.stringify(groups);
   if (fields.dataset.groups !== signature) {
@@ -394,7 +400,7 @@ $('#pauseTournament').addEventListener('click', () =>
     () => api('pause', { paused: !state.championship.paused }, 'PUT'),
     (next) => {
       const saved = draft && roundIn(next, draft.roundId);
-      if (saved && draft.championshipId === next.championship.id && draft.source === signature(saved.round))
+        if (saved && draft.championshipId === next.championship.id && draft.source === signature(saved.slot, saved.round))
         draft.revision = next.revision;
       client.apply(next);
     }
@@ -436,7 +442,7 @@ $('#resultForm').addEventListener('submit', (event) => {
         const grouped = new Map();
         for (const select of $('#resultFields').querySelectorAll('select')) {
           const rank = Number(select.value);
-          if (!rank) throw new Error('Choose a finish for all four players.');
+          if (!rank) throw new Error('Choose a finish for every remaining player.');
           if (!grouped.has(rank)) grouped.set(rank, []);
           grouped.get(rank).push(select.name);
         }

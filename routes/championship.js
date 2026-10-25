@@ -61,6 +61,14 @@ function createChampionshipRouter(service, requireOrganizer, { publicBaseUrl } =
     action((req) => service.register(req.params.id, req.body))
   );
   router.post(
+    '/:id/players/:playerId/withdraw',
+    action((req) => service.withdraw(req.params.id, req.params.playerId, bearer(req), req.body))
+  );
+  router.get(
+    '/:id/players/:playerId/membership',
+    action((req) => service.membership(req.params.id, req.params.playerId, bearer(req)))
+  );
+  router.post(
     '/:id/start',
     requireOrganizer,
     action((req) => service.start(req.params.id, req.body))

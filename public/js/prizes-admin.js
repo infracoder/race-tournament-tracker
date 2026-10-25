@@ -140,7 +140,7 @@ export function createPrizeAdmin({ run, applyState, onAuthLost, onChange }) {
     for (const award of settings.awards) {
       const row = element('tr');
       row.append(
-        element('td', '', award.name),
+        element('td', '', `${award.name}${award.kind === 'consolation' ? ' · Consolation' : ''}`),
         element('td', '', money(award.amount_cents, award.currency)),
         element('td', '', award.vendor_name || 'Awaiting choice')
       );
@@ -169,9 +169,12 @@ export function createPrizeAdmin({ run, applyState, onAuthLost, onChange }) {
       : 'PRIZES NOT ENABLED';
     const total = [...form.querySelectorAll('[data-prize-tier]')].map((input) => Number(input.value));
     const currency = $('#prizeCurrency').value;
+    const withdrawn = state.players.filter((p) => p.withdrawn_at).length;
+    const placements = Math.min(3, 9 - withdrawn);
+    const budget = total.slice(0, placements).reduce((sum, amount) => sum + amount, 0) + total[3] * (9 - placements);
     $('#prizeBudget').textContent =
       currency && total.every(Number.isFinite)
-        ? `Nine-player prize budget: ${money(Math.round((total[0] + total[1] + total[2] + total[3] * 6) * 100), currency)}`
+        ? `Nine-player prize budget: ${money(Math.round(budget * 100), currency)}`
         : 'Choose a currency to see your prize budget.';
     onChange?.();
   }

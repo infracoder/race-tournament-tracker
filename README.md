@@ -81,6 +81,14 @@ Correcting completed results or changing prize settings/artwork seals the reveal
 
 ## Persistence and older tournaments
 
+Players can choose **Withdraw from tournament** on their own phone's **My turn** dashboard any time before the host completes the event. Confirmation is final for that event. Their name, earned points, and completed results remain on record, but they leave the championship rankings and placement-prize playoffs. Their reserved spot remains theirs, including private prize access; it cannot be claimed by a new registration.
+
+An effective correction or prize change after completion retracts that completion and reopens withdrawals until the host completes the revised tournament. Withdrawing during a break leaves the queue paused; resuming play skips newly empty events.
+
+The schedule stays in place. Leave withdrawn players' seats empty and enter only the remaining players' finishing order, starting with first place. Remaining players use the usual 25/18/15/12 points. Team battles retain their assigned sides even when uneven; an empty side forfeits, and events with no remaining players are skipped automatically. If a player leaves between Balloon Battle and Coin Runners, their completed round still counts as half of that solo event and the other round earns zero. Saved results can still be corrected using the players who took part at the time.
+
+With gift-card prizes enabled, withdrawn players receive the configurable **Everyone else / consolation** amount. That amount stays private until the host completes the tournament. They can reveal it and choose a vendor through the same private prize flow. If everybody withdraws, the host can finish the event and reveal consolation prizes without crowning a champion.
+
 Ordinary startup adds championship tables without resetting existing data. A new championship archives the old event in the database, changes the active event, and rejects changes from old links. There is currently no archive browsing screen.
 
 The older configurable race tournament tables and `/api/tournament`, `/api/players`, `/api/races`, and `/api/battle` routes remain available for compatibility. The new screens use `/api/championship` and the nine-player format above. The legacy `npm run db:reset` command seeds only the older tournament; it does not set up the new championship. Avoid it during a real event.
