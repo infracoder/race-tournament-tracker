@@ -103,9 +103,9 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-The image uses Node 24 and stores its database in the mounted `./data` directory. The join origin must name the host computer, not the container's internal address. `docker compose down` stops the service while retaining `./data`; do not delete that directory to upgrade.
+The image uses Node 24 and stores its database in the mounted `./data` directory. Docker publishes port 80 for **http://mariokart.local** and keeps port 3000 available for existing links. Its default join origin is `http://mariokart.local`; set `PUBLIC_BASE_URL` in `.env` to override it. The origin must name the host computer, not the container's internal address. `docker compose down` stops the service while retaining `./data`; do not delete that directory to upgrade.
 
-On the Mac host, run `npm run mdns:start` to advertise **http://mariokart.local:3000** to phones on the same WiFi. `npm run mdns:stop` removes the advertisement. The publisher runs as a managed service for the current login session; start it again after restarting the Mac. `npm run docker:up` starts Docker and the local-name service together.
+On the Mac host, run `npm run mdns:start` to advertise **http://mariokart.local** to phones on the same WiFi. `npm run mdns:stop` removes the advertisement. The publisher runs as a managed service for the current login session; start it again after restarting the Mac. `npm run docker:up` starts Docker and the local-name service together. For direct Node startup on port 3000, use `MDNS_PORT=3000 npm run mdns:start` and a matching `PUBLIC_BASE_URL`.
 
 Use the same address on a phone after registering so its private player access stays remembered.
 

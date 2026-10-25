@@ -2,12 +2,13 @@ services:
   web:
     build: .
     ports:
+      - "80:3000"
       - "3000:3000"
     environment:
       - ORGANIZER_PIN=${ORGANIZER_PIN:-1234}
       - PORT=3000
       - DB_FILE=/data/tournament.db
-      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://mariokart.local}
     volumes:
       - ./data:/data
     restart: unless-stopped
