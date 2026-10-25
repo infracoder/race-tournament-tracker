@@ -67,14 +67,6 @@ function createRouter(database) {
         return res.status(400).json({ error: 'placements must be an array' });
       }
 
-      if (placements.length !== playersPerRace) {
-        return res.status(400).json({
-          error: `placements must contain exactly ${playersPerRace} players`,
-          expected: playersPerRace,
-          received: placements.length
-        });
-      }
-
       // Check race exists
       const race = await get('SELECT * FROM races WHERE race_number = ?', [race_number]);
 
@@ -86,24 +78,30 @@ function createRouter(database) {
         return res.status(409).json({ error: `Race ${race_number} is already completed` });
       }
 
-      // Handle battle games (no points, just mark complete)
-      if (race.is_battle) {
-        await transaction(async (tx) => {
-          await tx.run('UPDATE races SET completed = 1 WHERE race_number = ?', [race_number]);
-        });
-
-        return res.json({
-          success: true,
-          message: `Battle game ${race_number} marked complete`,
-          is_battle: true
+      const expectedPlayers = race.is_battle ? 4 : playersPerRace;
+      if (placements.length !== expectedPlayers) {
+        return res.status(400).json({
+          error: `placements must contain exactly ${expectedPlayers} players`,
+          expected: expectedPlayers,
+          received: placements.length
         });
       }
 
-      // Verify placements match race participants (use junction table)
-      const raceParticipantRows = await all(
-        'SELECT player_id FROM race_participants WHERE race_number = ? ORDER BY player_id',
-        [race_number]
-      );
+      let raceParticipantRows;
+      if (race.is_battle) {
+        const battle = await get(
+          'SELECT player1_id, player2_id, player3_id, player4_id FROM battle_games WHERE race_number = ?',
+          [race_number]
+        );
+        raceParticipantRows = battle
+          ? [battle.player1_id, battle.player2_id, battle.player3_id, battle.player4_id].map((player_id) => ({ player_id }))
+          : [];
+      } else {
+        raceParticipantRows = await all(
+          'SELECT player_id FROM race_participants WHERE race_number = ? ORDER BY player_id',
+          [race_number]
+        );
+      }
 
       if (raceParticipantRows.length === 0) {
         return res.status(404).json({ error: `No participants found for race ${race_number}` });
@@ -114,9 +112,22 @@ function createRouter(database) {
 
       if (JSON.stringify(raceParticipants) !== JSON.stringify(placementIds)) {
         return res.status(400).json({
-          error: `placements must include exactly the ${playersPerRace} players in this race`,
+          error: `placements must include exactly the ${expectedPlayers} players in this race`,
           expected: raceParticipants,
           received: placementIds
+        });
+      }
+
+      // Battles use their four-player roster and award no scoring points.
+      if (race.is_battle) {
+        await transaction(async (tx) => {
+          await tx.run('UPDATE races SET completed = 1 WHERE race_number = ?', [race_number]);
+        });
+
+        return res.json({
+          success: true,
+          message: `Battle game ${race_number} marked complete`,
+          is_battle: true
         });
       }
 

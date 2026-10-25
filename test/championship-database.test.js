@@ -38,7 +38,7 @@ test('isolated database initialization is additive, persistent and transactional
     db = createDatabase(file);
     assert.equal((await db.get("SELECT title FROM championships WHERE id = 'one'")).title, 'First');
     await db.seedTournament(8, 4);
-    assert.equal((await db.get('SELECT COUNT(*) AS count FROM races')).count, 8);
+    assert.equal((await db.get('SELECT COUNT(*) AS count FROM races')).count, 11);
     assert.equal((await db.get('SELECT COUNT(*) AS count FROM championships')).count, 1);
     assert.deepEqual(await db.all('PRAGMA foreign_key_check'), []);
     await assert.rejects(fs.stat(guard), { code: 'ENOENT' });
