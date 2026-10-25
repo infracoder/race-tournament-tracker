@@ -86,8 +86,8 @@ async function submitRaceResult(req, res) {
     
     // Handle battle games (no points, just mark complete)
     if (race.is_battle) {
-      await transaction(async () => {
-        await run('UPDATE races SET completed = 1 WHERE race_number = ?', [race_number]);
+      await transaction(async tx => {
+        await tx.run('UPDATE races SET completed = 1 WHERE race_number = ?', [race_number]);
       });
       
       return res.json({
@@ -127,18 +127,18 @@ async function submitRaceResult(req, res) {
     }
     
     // Insert results in a transaction
-    await transaction(async () => {
+    await transaction(async tx => {
       for (const placement of placements) {
         const points = pointsMap[placement.position];
         
-        await run(
+        await tx.run(
           'INSERT INTO results (race_number, player_id, position, points) VALUES (?, ?, ?, ?)',
           [race_number, placement.player_id, placement.position, points]
         );
       }
       
       // Mark race as completed
-      await run(
+      await tx.run(
         'UPDATE races SET completed = 1 WHERE race_number = ?',
         [race_number]
       );

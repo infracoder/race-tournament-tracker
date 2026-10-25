@@ -3,59 +3,54 @@ const fs = require('fs');
 const path = require('path');
 const { generateSchedule, validateSchedule } = require('./lib/schedule-generator');
 const { pickNonConsecutiveSlots, selectBattlePlayersRandom, pickRandomStage } = require('./lib/battle-distribution');
+const { initializeChampionshipSchema } = require('./lib/championship-schema');
 
-const DB_FILE = process.env.DB_FILE || './tournament.db';
-
-// Initialize database connection
-const db = new sqlite3.Database(DB_FILE, (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('📊 Connected to SQLite database:', DB_FILE);
-  }
-});
-
-// Promise wrappers for database operations
-const run = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
-      if (err) reject(err);
-      else resolve({ lastID: this.lastID, changes: this.changes });
+function createDatabase(filename = process.env.DB_FILE || './tournament.db') {
+  let db;
+  const ready = new Promise((resolve, reject) => {
+    db = new sqlite3.Database(filename, err => {
+      if (err) return reject(err);
+      db.configure('busyTimeout', 5000);
+      db.run('PRAGMA foreign_keys = ON', error => error ? reject(error) : resolve());
     });
   });
-};
-
-const get = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
+  // Prevent a connection error from becoming unhandled before the first query.
+  ready.catch(() => {});
+  const raw = {
+    run: (sql, params = []) => new Promise((resolve, reject) => {
+      db.run(sql, params, function (err) { err ? reject(err) : resolve({ lastID: this.lastID, changes: this.changes }); });
+    }),
+    get: (sql, params = []) => new Promise((resolve, reject) => db.get(sql, params, (err, row) => err ? reject(err) : resolve(row))),
+    all: (sql, params = []) => new Promise((resolve, reject) => db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows)))
+  };
+  let tail = Promise.resolve();
+  let closing;
+  const enqueue = operation => {
+    if (closing) return Promise.reject(new Error('Database is closing.'));
+    const next = tail.then(() => ready).then(operation);
+    tail = next.catch(() => {});
+    return next;
+  };
+  const run = (...args) => enqueue(() => raw.run(...args));
+  const get = (...args) => enqueue(() => raw.get(...args));
+  const all = (...args) => enqueue(() => raw.all(...args));
+  const withTransaction = (callback, begin) => enqueue(async () => {
+    await raw.run(begin);
+    try {
+      const result = await callback(raw);
+      await raw.run('COMMIT');
+      return result;
+    } catch (error) {
+      try { await raw.run('ROLLBACK'); } catch (rollbackError) { error.cause = rollbackError; }
+      throw error;
+    }
   });
-};
-
-const all = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
-};
-
-// Transaction helper
-const transaction = async (callback) => {
-  await run('BEGIN TRANSACTION');
-  try {
-    const result = await callback();
-    await run('COMMIT');
-    return result;
-  } catch (err) {
-    await run('ROLLBACK');
-    throw err;
-  }
-};
-
+  const transaction = callback => withTransaction(callback, 'BEGIN IMMEDIATE');
+  const readTransaction = callback => withTransaction(callback, 'BEGIN');
+  const close = () => {
+    if (!closing) closing = tail.then(() => ready).then(() => new Promise((resolve, reject) => db.close(err => err ? reject(err) : resolve())));
+    return closing;
+  };
 /**
  * Migrate existing race data from legacy player1_id...player4_id columns
  * to race_participants junction table
@@ -65,18 +60,15 @@ async function migrateToJunctionTable() {
     // Check if migration is needed
     const existingCount = await get('SELECT COUNT(*) as count FROM race_participants');
     if (existingCount && existingCount.count > 0) {
-      console.log('✅ Junction table migration already completed');
       return;
     }
     
     // Check if there are any races to migrate
     const racesCount = await get('SELECT COUNT(*) as count FROM races');
     if (!racesCount || racesCount.count === 0) {
-      console.log('📊 No races to migrate');
       return;
     }
     
-    console.log('🔄 Migrating legacy race data to junction table...');
     
     // Get all races with participant data
     const races = await all('SELECT race_number, player1_id, player2_id, player3_id, player4_id FROM races');
@@ -100,7 +92,6 @@ async function migrateToJunctionTable() {
       migratedCount++;
     }
     
-    console.log(`✅ Migrated ${migratedCount} races to junction table`);
   } catch (err) {
     console.warn('⚠️  Migration warning:', err.message);
     // Non-fatal - allow schema initialization to continue
@@ -109,7 +100,6 @@ async function migrateToJunctionTable() {
 
 // Initialize database schema
 async function initializeSchema() {
-  console.log('🔧 Initializing database schema...');
   
   // Enable foreign keys
   await run('PRAGMA foreign_keys = ON');
@@ -130,7 +120,6 @@ async function initializeSchema() {
   // Migrate existing tables: add player_count and total_races if missing
   try {
     await run('ALTER TABLE tournament ADD COLUMN player_count INTEGER DEFAULT 9');
-    console.log('✅ Added player_count column to tournament table');
   } catch (err) {
     // Column already exists, ignore
     if (!err.message.includes('duplicate column')) {
@@ -140,7 +129,6 @@ async function initializeSchema() {
   
   try {
     await run('ALTER TABLE tournament ADD COLUMN total_races INTEGER DEFAULT 9');
-    console.log('✅ Added total_races column to tournament table');
   } catch (err) {
     // Column already exists, ignore
     if (!err.message.includes('duplicate column')) {
@@ -207,7 +195,6 @@ async function initializeSchema() {
   // Add players_per_race column to tournament table
   try {
     await run('ALTER TABLE tournament ADD COLUMN players_per_race INTEGER DEFAULT 4');
-    console.log('✅ Added players_per_race column to tournament table');
   } catch (err) {
     // Column already exists, ignore
     if (!err.message.includes('duplicate column')) {
@@ -221,7 +208,6 @@ async function initializeSchema() {
   // Add is_battle column to races table
   try {
     await run('ALTER TABLE races ADD COLUMN is_battle INTEGER NOT NULL DEFAULT 0');
-    console.log('✅ Added is_battle column to races table');
   } catch (err) {
     // Column already exists, ignore
     if (!err.message.includes('duplicate column')) {
@@ -248,8 +234,8 @@ async function initializeSchema() {
   
   // Create index for battle race lookups
   await run('CREATE INDEX IF NOT EXISTS idx_races_is_battle ON races(is_battle)');
+  await initializeChampionshipSchema({ transaction });
 
-  console.log('✅ Database schema initialized');
 }
 
 /**
@@ -275,7 +261,6 @@ function resolvePlayersPerRace(playersPerRaceParam) {
         console.warn(`⚠️  Invalid PLAYERS_PER_RACE env var: ${envValue}. Using default 4.`);
         return 4;
       }
-      console.log(`🌍 Using PLAYERS_PER_RACE from environment: ${envValue}`);
       return envValue;
     }
   }
@@ -300,7 +285,6 @@ function resolvePlayerCount(playerCountParam) {
     if (fs.existsSync(configPath)) {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       if (config.player_count) {
-        console.log(`📄 Using player_count from config file: ${config.player_count}`);
         return config.player_count;
       }
     }
@@ -312,7 +296,6 @@ function resolvePlayerCount(playerCountParam) {
   if (process.env.PLAYER_COUNT) {
     const envCount = parseInt(process.env.PLAYER_COUNT, 10);
     if (!isNaN(envCount)) {
-      console.log(`🌍 Using PLAYER_COUNT from environment: ${envCount}`);
       return envCount;
     }
   }
@@ -335,7 +318,6 @@ function generateLetters(playerCount) {
 
 // Seed tournament data
 async function seedTournament(playerCountParam, playersPerRaceParam) {
-  console.log('🌱 Seeding tournament data...');
   
   // Resolve player count and players per race
   const playerCount = resolvePlayerCount(playerCountParam);
@@ -357,8 +339,6 @@ async function seedTournament(playerCountParam, playersPerRaceParam) {
     throw new Error(`Invalid configuration: (${playerCount} * 4) / ${playersPerRace} = ${totalRaces} (must be an integer)`);
   }
   
-  console.log(`🎮 Configuring tournament for ${playerCount} players, ${playersPerRace} per race`);
-  console.log(`📊 Total races: ${totalRaces}`);
   
   const letters = generateLetters(playerCount);
   
@@ -366,7 +346,6 @@ async function seedTournament(playerCountParam, playersPerRaceParam) {
   let schedule;
   try {
     schedule = generateSchedule(playerCount, playersPerRace);
-    console.log(`📋 Generated ${schedule.length} race schedule`);
   } catch (err) {
     throw new Error(`Failed to generate schedule: ${err.message}`);
   }
@@ -377,44 +356,41 @@ async function seedTournament(playerCountParam, playersPerRaceParam) {
     throw new Error(`Schedule validation failed: ${validation.errors.join(', ')}`);
   }
   
-  console.log('✅ Schedule validated successfully');
-  console.log(`   Max pair repeats: ${validation.metrics.maxPairRepeats}`);
-  console.log(`   Max back-to-back: ${validation.metrics.maxBackToBack}`);
   
-  await transaction(async () => {
+  await transaction(async tx => {
     // Clear existing data
-    await run('DELETE FROM results');
-    await run('DELETE FROM race_participants');
-    await run('DELETE FROM races');
-    await run('DELETE FROM players');
-    await run('DELETE FROM tournament');
+    await tx.run('DELETE FROM results');
+    await tx.run('DELETE FROM race_participants');
+    await tx.run('DELETE FROM races');
+    await tx.run('DELETE FROM players');
+    await tx.run('DELETE FROM tournament');
     
     // Create tournament record with player_count, total_races, and players_per_race
-    await run(
+    await tx.run(
       'INSERT INTO tournament (id, status, player_count, total_races, players_per_race) VALUES (1, ?, ?, ?, ?)',
       ['initialized', playerCount, totalRaces, playersPerRace]
     );
     
     // Create players with dynamic letters
     for (const letter of letters) {
-      await run('INSERT INTO players (player_letter, name) VALUES (?, NULL)', [letter]);
+      await tx.run('INSERT INTO players (player_letter, name) VALUES (?, NULL)', [letter]);
     }
     
     // Create races from generated schedule
     for (const race of schedule) {
       // Insert base race record
-      await run('INSERT INTO races (race_number, completed) VALUES (?, 0)', [race.race_number]);
+      await tx.run('INSERT INTO races (race_number, completed) VALUES (?, 0)', [race.race_number]);
       
       // Get player IDs and insert into junction table
       const playerIds = await Promise.all(
         race.letters.map(letter => 
-          get('SELECT id FROM players WHERE player_letter = ?', [letter])
+          tx.get('SELECT id FROM players WHERE player_letter = ?', [letter])
         )
       );
       
       // Insert race participants with slot positions
       for (let i = 0; i < playerIds.length; i++) {
-        await run(
+        await tx.run(
           'INSERT INTO race_participants (race_number, player_id, slot_position) VALUES (?, ?, ?)',
           [race.race_number, playerIds[i].id, i + 1]
         );
@@ -422,12 +398,12 @@ async function seedTournament(playerCountParam, playersPerRaceParam) {
       
       // LEGACY: Also populate old player1_id..player4_id columns for backward compat
       if (playersPerRace === 4) {
-        await run(
+        await tx.run(
           'UPDATE races SET player1_id = ?, player2_id = ?, player3_id = ?, player4_id = ? WHERE race_number = ?',
           [playerIds[0].id, playerIds[1].id, playerIds[2].id, playerIds[3].id, race.race_number]
         );
       } else if (playersPerRace === 2) {
-        await run(
+        await tx.run(
           'UPDATE races SET player1_id = ?, player2_id = ? WHERE race_number = ?',
           [playerIds[0].id, playerIds[1].id, race.race_number]
         );
@@ -436,10 +412,9 @@ async function seedTournament(playerCountParam, playersPerRaceParam) {
     
     // Generate and insert battle games
     const battleSlots = pickNonConsecutiveSlots(totalRaces, 3, 2, totalRaces - 1);
-    const allPlayerIds = (await all('SELECT id FROM players ORDER BY id')).map(p => p.id);
+    const allPlayerIds = (await tx.all('SELECT id FROM players ORDER BY id')).map(p => p.id);
     const battleRosters = selectBattlePlayersRandom(allPlayerIds, 3, 4);
     
-    console.log(`⚔️  Scheduling ${battleSlots.length} battle games at races: ${battleSlots.join(', ')}`);
     
     for (let i = 0; i < battleSlots.length; i++) {
       const raceNumber = battleSlots[i];
@@ -447,18 +422,17 @@ async function seedTournament(playerCountParam, playersPerRaceParam) {
       const stage = pickRandomStage();
       
       // Mark race as battle
-      await run(
+      await tx.run(
         'UPDATE races SET is_battle = 1 WHERE race_number = ?',
         [raceNumber]
       );
       
       // Insert battle game details
-      await run(
+      await tx.run(
         'INSERT INTO battle_games (race_number, stage_name, player1_id, player2_id, player3_id, player4_id) VALUES (?, ?, ?, ?, ?, ?)',
         [raceNumber, stage, roster[0], roster[1], roster[2], roster[3]]
       );
       
-      console.log(`   Battle ${i + 1}: Race ${raceNumber} - ${stage}`);
     }
   });
   
@@ -471,24 +445,22 @@ async function seedTournament(playerCountParam, playersPerRaceParam) {
     ORDER BY p.player_letter
   `);
   
-  console.log('📊 Player race participation:');
-  counts.forEach(c => console.log(`  Player ${c.player_letter}: ${c.race_count} races`));
   
   const allCorrect = counts.every(c => c.race_count === 4);
   if (!allCorrect) {
     throw new Error('❌ Post-seed validation failed: Not all players have exactly 4 races!');
   }
   
-  console.log('✅ Tournament seeded successfully');
-  console.log(`   Configuration: ${playerCount} players, ${playersPerRace} per race, ${totalRaces} total races`);
 }
 
-module.exports = {
-  db,
-  run,
-  get,
-  all,
-  transaction,
-  initializeSchema,
-  seedTournament
-};
+
+  return { run, get, all, transaction, readTransaction, close, initializeSchema, seedTournament };
+}
+
+// Legacy consumers retain their query interface without opening a file on import.
+let defaultDatabase;
+const getDefault = () => defaultDatabase ||= createDatabase();
+module.exports = { createDatabase };
+for (const method of ['run', 'get', 'all', 'transaction', 'readTransaction', 'close', 'initializeSchema', 'seedTournament']) {
+  module.exports[method] = (...args) => getDefault()[method](...args);
+}
