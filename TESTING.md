@@ -17,6 +17,8 @@ npm run test:browser
 
 Review regressions additionally cover interrupted legacy migrations and rollback, four scoring appearances in every classic configuration, consistent battle rosters and completion, stalled fetch/body recovery, repeated cached-page restoration, and locked result fields during a pending save. Prize tests assert unequal-amount ties reject completion atomically and equal-amount ties succeed.
 
+Withdrawal checks cover owner-only confirmation, lost-reply retries, unchanged schedules, reduced race and team fields, retained earned points, historical corrections, a skipped second solo round, consolation allocation, populated-schema upgrades, and completing without a champion. Browser checks exercise cancelled confirmation, public viewers, host drafts through pause/resume and withdrawal, temporary membership errors, private consolation reveals, and the no-champion finish.
+
 The browser rehearsal plays all 36 rounds through the host UI with prizes enabled. Its equal-performance fixture produces nine players tied on 214 points, requires a championship playoff winner and the remaining prize places, preserves those selections during polling, and reveals the champion on a separate public screen. It verifies the second-place private award, then corrects a team result, checks the reveal is sealed and playoff fields are cleared, and completes again with fresh selections.
 
 The restart rehearsal closes and reopens the database midway through Balloon Battle / Coin Runners while paused. It checks the exact saved snapshot, completes the queue, and reconciles every player's category total and four win counters to independently calculated expected results.
@@ -25,10 +27,11 @@ The restart rehearsal closes and reopens the database midway through Balloon Bat
 
 Implementation checks run on October 24–25, 2026:
 
-- Domain, database, API, client, and full-event tests: 46 passing on the host and Node 24 container, including prize playoffs.
-- Chromium-mobile and WebKit-mobile browser flows: 28 passing, including the full 36-round playoff/correction rehearsal, lower-place and identical-name playoffs, preserved host drafts, session recovery, private prizes, slow-save protection, and retrying a lost registration reply.
+- Domain, database, API, client, and full-event tests: 54 passing on the host and Node 24 container, including prize playoffs and withdrawals.
+- Chromium-mobile and WebKit-mobile browser flows: 36 passing, including the full 36-round playoff/correction rehearsal, lower-place and identical-name playoffs, withdrawals, preserved host drafts, session recovery, private prizes, slow-save protection, and retrying a lost registration reply.
 - Desktop Race HQ: visually inspected in the in-app browser against disposable preview data.
 - Prize playoff panel: visually inspected at 1280-pixel desktop and 390-pixel phone widths; no page overflow at phone width.
+- Withdrawn player dashboard: full-page screenshots inspected at phone and 1280-pixel desktop widths; status, empty seats, retained points, and private prize link remain readable without overflow.
 - Physical iPhone and Android devices: not yet exercised.
 - Switch round timing and controller swaps: not yet measured.
 

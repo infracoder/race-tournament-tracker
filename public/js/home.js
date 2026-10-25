@@ -30,7 +30,7 @@ mount((state) => {
       : element(
           'p',
           'muted',
-          state.winner ? 'That’s a wrap. See you next year!' : 'Your next lineup will appear here.'
+          state.championship?.status === 'completed' ? 'That’s a wrap. See you next year!' : 'Your next lineup will appear here.'
         )
   );
   $('#rosterCaption').textContent = `${state.registered || 0} OF 9 REGISTERED`;
@@ -39,7 +39,7 @@ mount((state) => {
       const card = element('div', `grid-player ${p.name ? '' : 'unclaimed'}`);
       card.append(
         element('span', `player-letter player-${p.letter.toLowerCase()}`, p.letter),
-        element('span', '', p.name || 'Open spot')
+        element('span', '', `${p.name || 'Open spot'}${p.withdrawn_at ? ' · Withdrawn' : ''}`)
       );
       return card;
     })
