@@ -43,3 +43,157 @@ test('leaving a page fences delayed updates even if a transport ignores abort', 
   await pending;
   assert.equal(seen.length, 0);
 });
+
+function stalledOnce(stage, result) {
+  let calls = 0, active = 0, maxActive = 0, aborted = false;
+  let startBody;
+  const bodyStarted = new Promise(resolve => { startBody = resolve; });
+  return {
+    bodyStarted,
+    get calls() { return calls; },
+    get maxActive() { return maxActive; },
+    get aborted() { return aborted; },
+    fetcher(_path, { signal }) {
+      calls++;
+      maxActive = Math.max(maxActive, ++active);
+      if (calls > 1) return Promise.resolve({
+        ok: true,
+        json: async () => { active--; return result; },
+        blob: async () => { active--; return result; }
+      });
+      const pending = new Promise((_, reject) => {
+        signal.addEventListener('abort', () => {
+          aborted = true;
+          active--;
+          reject(signal.reason);
+        }, { once: true });
+      });
+      return stage === 'fetch'
+        ? pending
+        : Promise.resolve({
+          ok: true,
+          json: () => { startBody(); return pending; },
+          blob: () => { startBody(); return pending; }
+        });
+    }
+  };
+}
+
+for (const stage of ['fetch', 'json']) {
+  test(`polling recovers after a stalled ${stage} without overlapping requests`, { timeout: 1000 }, async (t) => {
+    const { ChampionshipClient } = await import('../public/js/championship-client.js');
+    const next = { initialized: false, revision: 2 };
+    const transport = stalledOnce(stage, next);
+    const errors = [];
+    let recovered;
+    const recovery = new Promise(resolve => { recovered = resolve; });
+    const client = new ChampionshipClient({
+      document: null,
+      fetcher: transport.fetcher,
+      interval: 5,
+      timeout: 20,
+      onError: error => errors.push(error),
+      onState: state => { if (state === next) recovered(); }
+    });
+    t.after(() => client.stop());
+    client.apply({ initialized: false, revision: 1 });
+    const first = client.start();
+    assert.equal(client.refresh(), first);
+    await first;
+    assert.equal(transport.aborted, true);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].name, 'TimeoutError');
+    assert.equal(client.state.revision, 1);
+    await recovery;
+    assert.equal(client.state, next);
+    assert.equal(transport.calls, 2);
+    assert.equal(transport.maxActive, 1);
+  });
+
+  test(`a stalled ${stage} releases a mutation for an explicit retry`, { timeout: 1000 }, async () => {
+    const { request } = await import('../public/js/championship-client.js');
+    const saved = { revision: 3 };
+    const transport = stalledOnce(stage, saved);
+    const options = { fetcher: transport.fetcher, timeout: 20 };
+    await assert.rejects(request('/save', { value: 7 }, 'PUT', options), { name: 'TimeoutError' });
+    assert.equal(transport.aborted, true);
+    assert.equal(transport.calls, 1);
+    assert.equal(await request('/save', { value: 7 }, 'PUT', options), saved);
+    assert.equal(transport.calls, 2);
+    assert.equal(transport.maxActive, 1);
+  });
+}
+
+test('the shared deadline covers artwork body reading and permits a later load', { timeout: 1000 }, async () => {
+  const { fetchData } = await import('../public/js/championship-client.js');
+  const artwork = new Blob(['artwork']);
+  const transport = stalledOnce('blob', artwork);
+  const options = { fetcher: transport.fetcher, timeout: 20, responseType: 'blob' };
+  await assert.rejects(fetchData('/artwork', {}, options), { name: 'TimeoutError' });
+  assert.equal(transport.aborted, true);
+  const { data } = await fetchData('/artwork', {}, options);
+  assert.equal(data, artwork);
+  assert.equal(transport.maxActive, 1);
+});
+
+test('stop cancels a stalled body quietly and a later start can refresh', { timeout: 1000 }, async (t) => {
+  const { ChampionshipClient } = await import('../public/js/championship-client.js');
+  const transport = stalledOnce('json', { initialized: false, revision: 2 });
+  const errors = [];
+  const client = new ChampionshipClient({
+    document: null,
+    fetcher: transport.fetcher,
+    onError: error => errors.push(error),
+    timeout: 20
+  });
+  t.after(() => client.stop());
+  const pending = client.start();
+  await transport.bodyStarted;
+  client.stop();
+  await pending;
+  assert.deepEqual(errors, []);
+  assert.equal(transport.aborted, true);
+  await client.start();
+  assert.equal(client.state.revision, 2);
+  assert.equal(transport.maxActive, 1);
+});
+
+test('visibility changes keep one request and stop fences its delayed response', { timeout: 1000 }, async (t) => {
+  const { ChampionshipClient } = await import('../public/js/championship-client.js');
+  const document = new EventTarget();
+  document.hidden = false;
+  const seen = [], errors = [];
+  let finish, calls = 0;
+  const client = new ChampionshipClient({
+    document,
+    timeout: 100,
+    fetcher: () => {
+      calls++;
+      return calls === 1
+        ? new Promise(resolve => { finish = resolve; })
+        : Promise.resolve({ ok: true, json: async () => ({ initialized: false, revision: 2 }) });
+    },
+    onState: state => seen.push(state),
+    onError: error => errors.push(error)
+  });
+  t.after(() => client.stop());
+  const pending = client.start();
+  document.hidden = true;
+  document.dispatchEvent(new Event('visibilitychange'));
+  document.hidden = false;
+  document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(calls, 1);
+  assert.equal(client.refresh(), pending);
+  client.stop();
+  await pending;
+  finish({ ok: true, json: async () => ({ initialized: false, revision: 1 }) });
+  await new Promise(resolve => setImmediate(resolve));
+  document.dispatchEvent(new Event('visibilitychange'));
+  assert.equal(calls, 1);
+  assert.deepEqual(seen, []);
+  assert.deepEqual(errors, []);
+  await client.start();
+  assert.equal(calls, 2);
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].revision, 2);
+});

@@ -12,6 +12,8 @@ export const points = (units) =>
     .toFixed(2)
     .replace(/\.00$/, '')
     .replace(/(\.\d)0$/, '$1');
+export const money = (cents, currency) =>
+  new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100);
 export const labels = {
   race: 'Race',
   solo: 'Solo battle',
@@ -52,7 +54,10 @@ export function mount(render) {
       message($('#connectionNotice'), 'Reconnecting… showing the last saved update.', 'warning');
     }
   });
-  window.addEventListener('pagehide', () => client.stop(), { once: true });
+  window.addEventListener('pagehide', () => client.stop());
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) client.start();
+  });
   client.start();
   return client;
 }

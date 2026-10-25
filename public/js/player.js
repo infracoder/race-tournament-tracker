@@ -36,6 +36,8 @@ function render(value) {
   }
   expectedEvent = state.championship.id;
   rememberPlayer(expectedEvent, player.id);
+  $('#myPrizeLink').href =
+    `/prize.html?t=${encodeURIComponent(expectedEvent)}&id=${encodeURIComponent(player.id)}`;
   $('#playerHeading').textContent = `Let’s go, ${player.name}.`;
   const stat = state.standings.find((p) => p.id === player.id);
   $('#playerSubtitle').textContent =

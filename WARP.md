@@ -39,11 +39,11 @@ No lint or typecheck command is configured. `npm run db:reset` seeds the older t
 
 ## Frontend
 
-The five pages under `public/` use browser ES modules in `public/js/` and shared CSS. There is no bundler. `public/js/package.json` scopes those modules while server files remain CommonJS.
+The pages under `public/` use browser ES modules in `public/js/` and shared CSS. There is no bundler. `public/js/package.json` scopes those modules while server files remain CommonJS.
 
 `championship-client.js` serializes polling, ignores stale revisions and delayed old-event replies, refreshes on visibility return, and retains the last good state on network failure. Local storage remembers a player selection and a retry-safe registration token scoped to its championship.
 
-`ui.js` renders shared DOM elements using textContent for player names. Keep all names out of HTML interpolation. `organizer.js` keeps result drafts separate from polled state and requires explicit review after a conflicting revision. Preserve input and accessibility labels during polling.
+`ui.js` renders shared DOM elements using textContent for player names and owns polling stop/restart across cached browser navigation. Keep all names out of HTML interpolation. `organizer.js` keeps result drafts separate from polled state and requires explicit review after a conflicting revision. Result inputs and editor navigation stay disabled during a pending save. Preserve input and accessibility labels during polling.
 
 ## Test boundaries
 
@@ -51,6 +51,12 @@ Node tests use `node:test`, real SQLite files in temporary directories, and scop
 
 The automated full-event fixtures prove all scores, a mid-solo restart, shared ranks, playoff selection, champion withdrawal after correction, and live display updates. Real phone networking and Switch pacing are separate manual checks.
 
-## Deferred prizes
+## Private prizes
 
-The organizer wants configurable gift-card images and amounts revealed only after completion. This feature is not implemented. Any future private configuration must be omitted from public snapshots and client assets; unrevealed artwork needs authenticated server routes. CSS hiding is insufficient. Resolve the deferred artwork, access, currency, and prize-place tie decisions before implementing allocation.
+`lib/championship-prizes.js` owns private configuration, raster artwork validation, display SVGs, and transactional award allocation. The additive prize tables keep settings and vendor images separate from public snapshots. The host configures currency, tier amounts, and up to twelve vendor options. Default amounts live only in server code.
+
+Prize APIs under `/api/championship/:id/prizes` require the organizer session. Player prize and artwork requests require the registration capability in an Authorization bearer header, bound to both championship and player. A host-only endpoint generates a private recovery link with that capability in its URL fragment. `public/js/prize.js` imports the fragment into local storage and immediately removes it from the address. Do not put that token in a query, public snapshot, log, or image URL.
+
+Awards are generated in the completion transaction and remain invisible to other players even after completion. Private artwork is fetched with authorization into object URLs. Completion withdrawal removes awards and seals the player view. Each completion issues a fresh reveal ID; vendor choice submissions must match it. Separate players' choices do not conflict on a global revision, and they never publish preference data in the public snapshot.
+
+`prizes-admin.js` owns private host drafts, uploads, recovery links, and the vendor preference table. `prize.js` owns each player's reveal and preference. Purchases, codes, and actual card delivery are outside the feature. Exact unequal-prize point ties remain blocked pending the organizer's chosen resolution rule; never allocate them alphabetically.

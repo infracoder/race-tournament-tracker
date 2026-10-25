@@ -12,6 +12,7 @@ import {
   points
 } from './ui.js';
 import { request } from './championship-client.js';
+import { createPrizeAdmin } from './prizes-admin.js';
 
 let state;
 let authenticated = false;
@@ -19,6 +20,18 @@ let authenticationVersion = 0;
 let busy = false;
 let draft = null;
 let correctionId = null;
+const prizeAdmin = createPrizeAdmin({
+  run: perform,
+  applyState: (next) => client.apply(next),
+  onAuthLost: () => {
+    setAuthenticated(false);
+    message(
+      $('#loginMessage'),
+      'Your host session expired. Log in again; your entries are still here.',
+      'warning'
+    );
+  }
+});
 const client = mount((next) => {
   state = next;
   render();
@@ -177,6 +190,8 @@ function renderEditor() {
   );
   $('#reloadResult').hidden = !stale;
   $('#saveResult').disabled = busy || Boolean(stale);
+  for (const control of $('#resultFields').querySelectorAll('input, select')) control.disabled = busy;
+  for (const selector of ['#reloadResult', '#backToCurrent', '#correctionRound']) $(selector).disabled = busy;
   $('#advanceEvent').hidden = Boolean(
     draft || !state.active_slot?.completed || state.championship.status !== 'running'
   );
@@ -195,6 +210,7 @@ function renderEditor() {
 
 function render() {
   $('#loginButton').disabled = busy;
+  prizeAdmin.update(state, authenticated, busy);
   if (!state || !authenticated) return;
   const initialized = state.initialized;
   const c = state.championship;
@@ -338,13 +354,14 @@ $('#logoutButton').addEventListener('click', () =>
     () => {
       draft = null;
       correctionId = null;
+      prizeAdmin.clear();
       setAuthenticated(false);
     }
   )
 );
 
 $('#resultFields').addEventListener('change', () => {
-  if (draft) {
+  if (draft && !busy) {
     draft.dirty = true;
     renderEditor();
   }
@@ -389,6 +406,7 @@ $('#resultForm').addEventListener('submit', (event) => {
 });
 
 function reloadEditor() {
+  if (busy) return;
   draft = null;
   if (!roundIn(state, correctionId)?.round.completed) correctionId = null;
   render();
@@ -396,13 +414,14 @@ function reloadEditor() {
 $('#reloadResult').addEventListener('click', reloadEditor);
 $('#correctionRound').addEventListener('change', render);
 $('#editCorrection').addEventListener('click', () => {
-  if (!$('#correctionRound').value) return;
+  if (busy || !$('#correctionRound').value) return;
   correctionId = $('#correctionRound').value;
   draft = null;
   render();
   $('#editorHeading').scrollIntoView({ block: 'start' });
 });
 $('#backToCurrent').addEventListener('click', () => {
+  if (busy) return;
   correctionId = null;
   draft = null;
   render();

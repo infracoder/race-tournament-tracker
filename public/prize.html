@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#ed3e37" />
+    <title>Your prize · Tolsma Kart 03</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <script type="module" src="/js/prize.js"></script>
+  </head>
+  <body data-page="prize">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Tolsma Kart Championship home"
+          ><span class="checkered-mark" aria-hidden="true"></span
+          ><span>TOLSMA<span class="brand-sub">KART CHAMPIONSHIP</span></span
+          ><span class="brand-edition">03</span></a
+        >
+        <nav aria-label="Main navigation">
+          <a href="/">Race HQ</a><a href="/leaderboard.html">Standings</a
+          ><a href="/player.html" data-my-link>My turn</a
+          ><a class="host-link" href="/organizer.html" aria-label="Host controls">⚙</a>
+        </nav>
+      </div>
+    </header>
+    <div class="status-bar">
+      <span id="liveStatus" class="live-status">Connecting…</span
+      ><span class="status-event">THIRD ANNUAL <span aria-hidden="true">/</span> ONE BIG NIGHT</span>
+    </div>
+    <div id="connectionNotice" class="notice warning connection-notice" role="status" hidden></div>
+    <main id="main" class="container prize-container">
+      <section id="sealedPrize" class="sealed-prize card">
+        <span class="eyebrow">ONE LAST SURPRISE · JUST FOR YOU</span>
+        <div class="gift-box" aria-hidden="true"><span></span></div>
+        <h1 id="prizeHeading">Your prize is <span class="red-text">sealed.</span></h1>
+        <p id="prizeDescription" class="intro">
+          Keep racing. Your host will unlock your surprise when the tournament is complete.
+        </p>
+        <button id="openPrize" class="btn primary" hidden>Open my prize →</button>
+        <p class="private-note">
+          Your prize is private. Share your private link only with someone you trust.
+        </p>
+      </section>
+      <div id="prizeMessage" class="notice" role="status" hidden></div>
+      <section id="revealedPrize" class="prize-reveal" hidden>
+        <div class="prize-celebration">
+          <span class="eyebrow">YOU SHOWED UP. YOU PLAYED YOUR HEART OUT.</span>
+          <h1 id="prizePlayerName" tabindex="-1">This one's yours.</h1>
+          <p id="prizePlacement" class="muted"></p>
+          <div id="prizeAmount" class="prize-amount"></div>
+          <p class="prize-amount-caption">TOWARD A GIFT CARD OF YOUR CHOICE</p>
+        </div>
+        <section class="card section-gap">
+          <div class="section-heading">
+            <h2>Pick your gift card.</h2>
+            <span class="private-badge">YOUR CHOICE</span>
+          </div>
+          <p class="muted">Choose one of the vendors your host is offering.</p>
+          <form id="vendorChoiceForm">
+            <div id="vendorChoices" class="vendor-choice-grid"></div>
+            <button id="saveVendorChoice" class="btn primary full" type="submit">Save my choice →</button>
+          </form>
+          <div id="vendorChoiceMessage" class="notice" role="status" hidden></div>
+          <p class="muted section-gap">
+            This records your preference. Your host will arrange the actual gift card.
+          </p>
+        </section>
+      </section>
+      <a id="backToPlayer" class="text-button" href="/player.html">← Back to my dashboard</a>
+    </main>
+    <footer class="site-footer">
+      <a class="brand-footer" href="/">TOLSMA KART <span>03</span></a>
+      <p>A little competition. A lot of good company.</p>
+      <a href="/organizer.html">Host controls ↗</a>
+    </footer>
+    <noscript>This private prize page needs JavaScript enabled.</noscript>
+  </body>
+</html>

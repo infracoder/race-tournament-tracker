@@ -1,12 +1,54 @@
+const REQUEST_TIMEOUT = 15000;
+
+export async function fetchData(
+  path,
+  options = {},
+  { fetcher = (...args) => globalThis.fetch(...args), timeout = REQUEST_TIMEOUT, responseType = 'json' } = {}
+) {
+  const { signal, ...init } = options;
+  if (signal?.aborted) throw Object.assign(new Error('Request cancelled.'), { name: 'AbortError' });
+  const controller = new AbortController();
+  let timer, onAbort;
+  const cancelled = new Promise((_, reject) => {
+    onAbort = () => {
+      reject(Object.assign(new Error('Request cancelled.'), { name: 'AbortError' }));
+      controller.abort();
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    timer = setTimeout(() => {
+      reject(
+        Object.assign(new Error('Connection timed out. Try again when you are connected.'), {
+          name: 'TimeoutError'
+        })
+      );
+      controller.abort();
+    }, timeout);
+  });
+  try {
+    return await Promise.race([
+      (async () => {
+        const response = await fetcher(path, { ...init, signal: controller.signal });
+        const data = await response[responseType]();
+        return { response, data };
+      })(),
+      cancelled
+    ]);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
 export class ChampionshipClient {
   constructor({
     onState = () => {},
     onError = () => {},
     fetcher = (...args) => globalThis.fetch(...args),
     document = globalThis.document,
-    interval = 3000
+    interval = 3000,
+    timeout = REQUEST_TIMEOUT
   } = {}) {
-    Object.assign(this, { onState, onError, fetcher, document, interval });
+    Object.assign(this, { onState, onError, fetcher, document, interval, timeout });
     this.state = null;
     this.generation = 0;
     this.running = false;
@@ -34,12 +76,12 @@ export class ChampionshipClient {
     this.controller = controller;
     this.inFlight = (async () => {
       try {
-        const response = await this.fetcher('/api/championship/current', {
-          cache: 'no-store',
-          signal: controller.signal
-        });
+        const { response, data: state } = await fetchData(
+          '/api/championship/current',
+          { cache: 'no-store', signal: controller.signal },
+          { fetcher: this.fetcher, timeout: this.timeout }
+        );
         if (!response.ok) throw new Error('Live updates are temporarily unavailable.');
-        const state = await response.json();
         if (generation === this.generation) this.apply(state);
       } catch (error) {
         if (error.name !== 'AbortError' && generation === this.generation) this.onError(error);
@@ -65,19 +107,23 @@ export class ChampionshipClient {
   }
 }
 
-export async function request(path, body, method = 'POST') {
-  let response;
+export async function request(path, body, method = 'POST', transportOptions) {
+  let response, data;
   try {
-    response = await fetch(path, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      cache: 'no-store'
-    });
-  } catch {
+    ({ response, data } = await fetchData(
+      path,
+      {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        cache: 'no-store'
+      },
+      transportOptions
+    ));
+  } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') throw error;
     throw new Error('Connection lost. Your entries are still here. Try again when you are connected.');
   }
-  const data = await response.json();
   if (!response.ok)
     throw Object.assign(new Error(data.error || 'Please try again.'), {
       status: response.status,
