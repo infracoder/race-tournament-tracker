@@ -133,13 +133,21 @@ async function finishEvent(call, id, tied = false) {
   return state;
 }
 
-test('saved prize defaults copy settings and artwork into new tournaments without sharing choices or later edits', async t => {
+test('saved prize defaults copy all 21 vendors and artwork without sharing choices or later edits', async t => {
   const { call, database, filename, id, settingsPath, state } = await fixture(t);
   const tiers = { first: 12345, second: 7500, third: 5000, participation: 1500 };
-  let current = (await call(settingsPath, {
+  const vendors = Array.from({ length: 21 }, (_, index) => ({ name: index ? `Saved vendor ${index + 1}` : 'Saved Jade' }));
+  const configured = await call(settingsPath, {
     expectedRevision: state.revision, enabled: true, currency: 'CAD', tiers,
-    vendors: [{ name: 'Saved Jade' }]
-  }, { method: 'PUT' })).body;
+    vendors
+  }, { method: 'PUT' });
+  assert.equal(configured.status, 200);
+  let current = configured.body;
+  const oversized = await call(settingsPath, {
+    expectedRevision: current.revision, enabled: true, currency: 'CAD', tiers,
+    vendors: Array.from({ length: 33 }, (_, index) => ({ name: `Too many ${index}` }))
+  }, { method: 'PUT' });
+  assert.equal(oversized.status, 400);
   const vendor = (await call(settingsPath)).body.vendors[0];
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+y8d8AAAAASUVORK5CYII=', 'base64');
   current = (await call(`${settingsPath}/vendors/${vendor.id}/artwork`, undefined, {
@@ -163,11 +171,13 @@ test('saved prize defaults copy settings and artwork into new tournaments withou
   assert.equal(next.enabled, true);
   assert.equal(next.currency, 'CAD');
   assert.deepEqual(next.tiers, tiers);
+  assert.equal(next.vendors.length, 21);
+  assert.deepEqual(next.vendors.map(v => v.name), vendors.map(v => v.name));
   assert.equal(next.vendors[0].name, 'Saved Jade');
   assert.equal(next.vendors[0].has_artwork, true);
   assert.notEqual(next.vendors[0].id, vendor.id);
   assert.deepEqual(next.awards, []);
-  const art = await database.get('SELECT artwork FROM championship_prize_vendors WHERE championship_id = ?', [created.body.championship.id]);
+  const art = await database.get('SELECT artwork FROM championship_prize_vendors WHERE championship_id = ? AND id = ?', [created.body.championship.id, next.vendors[0].id]);
   assert.deepEqual(art.artwork, png);
   assert.equal(JSON.stringify(created.body).includes('Saved Jade'), false);
   assert.equal((await call(defaultsPath, { expectedRevision: saved.body.revision })).status, 409);
