@@ -258,8 +258,8 @@ export function createPrizeAdmin({ run, applyState, onAuthLost, onChange }) {
     renderStatus();
   });
   $('#addPrizeVendor').addEventListener('click', () => {
-    if (vendors.children.length >= 12)
-      return message($('#prizeSettingsMessage'), 'You can offer up to twelve vendors.', 'warning');
+    if (vendors.children.length >= 32)
+      return message($('#prizeSettingsMessage'), 'You can offer up to 32 vendors.', 'warning');
     const row = vendorRow();
     vendors.append(row);
     dirty = true;
