@@ -87,6 +87,7 @@ function renderPrize(result) {
     return;
   }
   const firstReveal = $('#revealedPrize').hidden;
+  const purchased = result.award.fulfillment_status !== 'pending';
   $('#sealedPrize').hidden = true;
   $('#revealedPrize').hidden = false;
   $('#prizePlayerName').textContent = `${result.player.name}, you earned this.`;
@@ -103,6 +104,7 @@ function renderPrize(result) {
       radio.name = 'vendor';
       radio.value = vendor.id;
       radio.required = true;
+      radio.disabled = purchased;
       radio.checked = vendor.id === result.award.vendor_id;
       const image = element('img', 'vendor-choice-image');
       image.alt = `${vendor.name} gift card`;
@@ -130,11 +132,15 @@ function renderPrize(result) {
     })
   );
   $('#saveVendorChoice').textContent = result.award.vendor_id ? 'Update my choice →' : 'Save my choice →';
-  message(
-    $('#vendorChoiceMessage'),
-    result.award.vendor_id ? 'Your choice is saved. Your host can see your preference.' : '',
-    'success'
-  );
+  $('#saveVendorChoice').disabled = purchased;
+  let statusMessage = '';
+  if (result.award.fulfillment_status === 'delivered')
+    statusMessage = 'Your host marked your gift card as delivered. Enjoy your prize!';
+  else if (purchased)
+    statusMessage = 'Your host has purchased your gift card. Contact your host if you need to change it.';
+  else if (result.award.vendor_id)
+    statusMessage = 'Your choice is saved. Your host can see your preference.';
+  message($('#vendorChoiceMessage'), statusMessage, 'success');
 }
 
 async function loadPrize() {
@@ -182,7 +188,7 @@ $('#openPrize').addEventListener('click', () => {
 });
 $('#vendorChoiceForm').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (busy || !prize || prize.locked) return;
+  if (busy || !prize || prize.locked || prize.award.fulfillment_status !== 'pending') return;
   const vendorId = $('#vendorChoices input:checked')?.value;
   if (!vendorId) return;
   busy = true;
@@ -198,7 +204,7 @@ $('#vendorChoiceForm').addEventListener('submit', async (event) => {
     }
   } finally {
     busy = false;
-    $('#saveVendorChoice').disabled = false;
+    $('#saveVendorChoice').disabled = prize?.award?.fulfillment_status !== 'pending';
   }
 });
 window.addEventListener('pagehide', closePrize);

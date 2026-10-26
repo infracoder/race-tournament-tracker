@@ -71,7 +71,11 @@ In host controls, open **Gift-card prizes**, enable prizes, choose a currency, a
 
 Add the gift-card vendors you are offering. Each vendor includes a display card; you can upload your own PNG, JPEG, or WebP artwork up to 1 MB. Use ordinary display artwork without redemption codes. Amounts and vendor artwork stay out of public responses and assets before completion.
 
-After you complete the tournament, each player opens **My private prize** from their dashboard to reveal their own amount and choose a vendor. Other players' prizes remain private. Vendor choices persist and appear in the host's prize panel so you can arrange the cards. The app records preferences; purchasing, issuing, and delivering actual gift cards remain separate.
+After you complete the tournament, each player opens **My private prize** from their dashboard to reveal their own amount and choose a vendor. Other players' prizes remain private. Vendor choices persist and appear in the host's prize panel so you can arrange the cards. Actual card purchases and delivery happen outside the app.
+
+Select **Use saved settings for future tournaments** after saving your prize setup to remember its amounts, currency, vendors, and uploaded artwork. New tournaments use a separate copy of that setup automatically. Registrations, vendor choices, awards, and delivery records stay with their original tournament. Editing the current setup changes the default only when you save it again.
+
+Under **Gift-card fulfillment**, mark each chosen card **Purchased** and then **Delivered**. Purchased cards lock the player's vendor choice; return the card to **To buy** if they need to choose again. Players see only their own status. Purchases from a retracted reveal remain in **Purchases from earlier results**, so a correction cannot erase cards you have already bought or handed out. Review that list before purchasing revised prizes.
 
 The original registration phone provides private access automatically. For another device, select the player under **Help a player open their prize** and give them their private link. Treat that link as private: anyone holding it can view that player's prize. Selecting a public dashboard name alone does not grant access.
 
@@ -80,6 +84,8 @@ If equal points span different prize amounts, run playoffs and record the requir
 Correcting completed results or changing prize settings/artwork seals the reveal and clears vendor choices. Complete the tournament again to assign the revised prizes and record fresh playoff placements when required. Old vendor submissions cannot apply to a new reveal.
 
 ## Persistence and older tournaments
+
+Host controls include a persistent **event clock** with time in play, time in the current event, and an estimated finish. **Take a break** pauses both timers. Saving the last round stops that event's timer; **Next event** starts the next one. The play timer includes changeovers and stops when you advance past the final event. Refreshing or restarting the server preserves timing. Early estimates allow six minutes per round, then follow your pace after four played rounds; breaks, playoffs, and the prize reveal need additional time. Timing starts with play in newly started tournaments; historical play before this feature was installed cannot be reconstructed.
 
 Players can choose **Withdraw from tournament** on their own phone's **My turn** dashboard any time before the host completes the event. Confirmation is final for that event. Their name, earned points, and completed results remain on record, but they leave the championship rankings and placement-prize playoffs. Their reserved spot remains theirs, including private prize access; it cannot be claimed by a new registration.
 

@@ -133,6 +133,50 @@ async function finishEvent(call, id, tied = false) {
   return state;
 }
 
+test('saved prize defaults copy settings and artwork into new tournaments without sharing choices or later edits', async t => {
+  const { call, database, filename, id, settingsPath, state } = await fixture(t);
+  const tiers = { first: 12345, second: 7500, third: 5000, participation: 1500 };
+  let current = (await call(settingsPath, {
+    expectedRevision: state.revision, enabled: true, currency: 'CAD', tiers,
+    vendors: [{ name: 'Saved Jade' }]
+  }, { method: 'PUT' })).body;
+  const vendor = (await call(settingsPath)).body.vendors[0];
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+y8d8AAAAASUVORK5CYII=', 'base64');
+  current = (await call(`${settingsPath}/vendors/${vendor.id}/artwork`, undefined, {
+    method: 'PUT', raw: png, type: 'image/png', revision: current.revision
+  })).body;
+  const defaultsPath = `${settingsPath}/defaults`;
+  assert.equal((await call(defaultsPath, { expectedRevision: current.revision }, { host: false })).status, 401);
+  assert.equal((await call(defaultsPath, { expectedRevision: current.revision - 1 })).status, 409);
+  const saved = await call(defaultsPath, { expectedRevision: current.revision });
+  assert.equal(saved.status, 200);
+  assert.ok((await call(settingsPath)).body.defaults_saved_at);
+  const reopened = createDatabase(filename);
+  try {
+    await reopened.initializeSchema();
+    assert.equal((await reopened.get('SELECT COUNT(*) AS n FROM prize_defaults')).n, 1);
+  } finally { await reopened.close(); }
+  const created = await call('/api/championship', { expectedActiveId: id, seed: 'with-saved-prizes' });
+  assert.equal(created.status, 201);
+  const nextPath = `/api/championship/${created.body.championship.id}/prizes`;
+  const next = (await call(nextPath)).body;
+  assert.equal(next.enabled, true);
+  assert.equal(next.currency, 'CAD');
+  assert.deepEqual(next.tiers, tiers);
+  assert.equal(next.vendors[0].name, 'Saved Jade');
+  assert.equal(next.vendors[0].has_artwork, true);
+  assert.notEqual(next.vendors[0].id, vendor.id);
+  assert.deepEqual(next.awards, []);
+  const art = await database.get('SELECT artwork FROM championship_prize_vendors WHERE championship_id = ?', [created.body.championship.id]);
+  assert.deepEqual(art.artwork, png);
+  assert.equal(JSON.stringify(created.body).includes('Saved Jade'), false);
+  assert.equal((await call(defaultsPath, { expectedRevision: saved.body.revision })).status, 409);
+  await call(nextPath, { expectedRevision: next.revision, enabled: false, currency: 'USD', tiers: { ...tiers, first: 1 }, vendors: [] }, { method: 'PUT' });
+  const third = (await call('/api/championship', { expectedActiveId: created.body.championship.id, seed: 'same-defaults' })).body;
+  assert.deepEqual((await call(`/api/championship/${third.championship.id}/prizes`)).body.tiers, tiers);
+  assert.equal((await database.get('SELECT first_cents FROM championship_prize_settings WHERE championship_id = ?', [id])).first_cents, tiers.first);
+});
+
 test('completion assigns nine private prizes once and vendor choices survive unrelated selections', async t => {
   const { call, database, id, settingsPath, token, state } = await fixture(t);
   for (let i = 1; i < 9; i++) await call(`/api/championship/${id}/players`, { name: `Player ${i + 1}`, registrationToken: `prize-competitor-token-${i}` }, { host: false });
@@ -257,6 +301,67 @@ test('playoff placements settle different prizes without changing points and per
   const replay = await call(`/api/championship/${id}/complete`, { ...completion, expectedRevision: completed.body.revision, prizePlayoffs: { 1: ['I', 'C', 'A'] } });
   assert.equal(replay.body.revision, completed.body.revision);
   assert.deepEqual(await database.all('SELECT player_id, place, amount_cents, reveal_id FROM championship_prize_awards WHERE championship_id = ? ORDER BY place, player_id', [id]), awards);
+});
+
+test('fulfillment is host-managed, locks purchased vendors, and retains earlier purchases after corrections', async t => {
+  const { call, database, filename, id, settingsPath, token } = await fixture(t);
+  for (let i = 1; i < 9; i++) await call(`/api/championship/${id}/players`, { name: `Player ${i + 1}`, registrationToken: `fulfillment-token-${i}` }, { host: false });
+  let state = (await call('/api/championship/current')).body;
+  state = (await call(settingsPath, { expectedRevision: state.revision, enabled: true, currency: 'CAD', tiers: { first: 10000, second: 7500, third: 5000, participation: 1500 }, vendors: [{ name: 'Jade' }, { name: 'Saffron' }] }, { method: 'PUT' })).body;
+  const path = `/api/championship/${id}/players/A/prize`;
+  const fulfillment = `${path}/fulfillment`;
+  assert.equal((await call(fulfillment, { expectedRevision: state.revision, status: 'purchased', revealId: 'sealed' }, { method: 'PUT' })).status, 409);
+  state = await finishEvent(call, id);
+  state = (await call(`/api/championship/${id}/complete`, { expectedRevision: state.revision })).body;
+  let own = (await call(path, undefined, { host: false, token })).body;
+  const oldReveal = own.award.reveal_id;
+  const change = status => ({ expectedRevision: state.revision, revealId: oldReveal, status });
+  assert.equal((await call(fulfillment, change('purchased'), { host: false, token, method: 'PUT' })).status, 401);
+  assert.equal((await call(fulfillment, change('purchased'), { method: 'PUT' })).status, 409, 'a vendor must be chosen first');
+  assert.equal((await call(fulfillment, change('invalid'), { method: 'PUT' })).status, 400);
+  own = (await call(`${path}/vendor`, { revealId: oldReveal, vendorId: own.vendors[0].id }, { host: false, token, method: 'PUT' })).body;
+  assert.equal((await call(fulfillment, change('purchased'), { method: 'PUT' })).status, 409, 'stale host cannot record a different choice');
+  state = (await call('/api/championship/current')).body;
+  state = (await call(fulfillment, change('purchased'), { method: 'PUT' })).body;
+  assert.ok(state.championship, 'the response remains a tournament snapshot');
+  assert.equal((await call(`${path}/vendor`, { revealId: oldReveal, vendorId: own.vendors[1].id }, { host: false, token, method: 'PUT' })).status, 409);
+  assert.equal((await call(`${path}/vendor`, { revealId: oldReveal, vendorId: own.vendors[0].id }, { host: false, token, method: 'PUT' })).status, 200, 'retrying the same choice remains safe');
+  state = (await call(fulfillment, change('delivered'), { method: 'PUT' })).body;
+  own = (await call(path, undefined, { host: false, token })).body;
+  assert.equal(own.award.fulfillment_status, 'delivered');
+  let settings = (await call(settingsPath)).body;
+  assert.equal(settings.awards.find(a => a.player_id === 'A').fulfillment_status, 'delivered');
+  assert.deepEqual(settings.earlier_fulfillments, []);
+  const beforeRemember = await database.all('SELECT * FROM championship_prize_awards WHERE championship_id = ? ORDER BY player_id', [id]);
+  state = (await call(`${settingsPath}/defaults`, { expectedRevision: state.revision })).body;
+  assert.equal(state.championship.status, 'completed');
+  assert.deepEqual(await database.all('SELECT * FROM championship_prize_awards WHERE championship_id = ? ORDER BY player_id', [id]), beforeRemember);
+  assert.equal((await call(path, undefined, { host: false, token })).body.award.fulfillment_status, 'delivered');
+  const publicState = JSON.stringify((await call('/api/championship/current', undefined, { host: false })).body);
+  assert.equal(publicState.includes('delivered'), false);
+  assert.equal(publicState.includes('Jade'), false);
+  const team = state.slots.find(s => s.category === 'team');
+  state = (await call(`/api/championship/${id}/rounds/${team.rounds[0].id}/result`, { expectedRevision: state.revision, winningSide: 'robbers' }, { method: 'PUT' })).body;
+  settings = (await call(settingsPath)).body;
+  assert.deepEqual(settings.awards, []);
+  assert.equal(settings.earlier_fulfillments.length, 1);
+  assert.equal(settings.earlier_fulfillments[0].vendor_name, 'Jade');
+  assert.equal(settings.earlier_fulfillments[0].status, 'delivered');
+  assert.equal(settings.earlier_fulfillments[0].amount_cents, 10000);
+  assert.equal((await call(path, undefined, { host: false, token })).body.locked, true);
+  const completed = await call(`/api/championship/${id}/complete`, { expectedRevision: state.revision });
+  assert.equal(completed.status, 200);
+  state = completed.body;
+  own = (await call(path, undefined, { host: false, token })).body;
+  assert.notEqual(own.award.reveal_id, oldReveal);
+  assert.equal(own.award.fulfillment_status, 'pending');
+  assert.equal((await call(fulfillment, change('delivered'), { method: 'PUT' })).status, 409, 'an old reveal cannot be marked against a revised prize');
+  const reopened = createDatabase(filename);
+  try {
+    await reopened.initializeSchema();
+    assert.equal((await reopened.get('SELECT status FROM championship_prize_fulfillments WHERE championship_id = ?', [id])).status, 'delivered');
+  } finally { await reopened.close(); }
+  assert.deepEqual(await database.all('PRAGMA foreign_key_check'), []);
 });
 
 test('a playoff below the leader changes only the tied prize places', async t => {

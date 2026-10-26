@@ -25,10 +25,14 @@ export function createPrizeAdmin({ run, applyState, onAuthLost, onChange }) {
     for (const input of form.querySelectorAll('[data-prize-tier]')) input.value = '';
     vendors.replaceChildren();
     $('#prizeOrders').replaceChildren();
+    $('#prizeOrderSummary').textContent = '';
+    $('#earlierPrizePurchases').replaceChildren();
+    $('#earlierPrizePurchases').hidden = true;
     $('#privatePrizeLink').value = '';
     $('#privateLinkResult').hidden = true;
     $('#prizeBudget').textContent = '';
     $('#prizeSetupStatus').textContent = '';
+    $('#prizeDefaultsStatus').textContent = '';
     message($('#prizeSettingsMessage'), '');
     message($('#prizeLinkMessage'), '');
   }
@@ -125,35 +129,77 @@ export function createPrizeAdmin({ run, applyState, onAuthLost, onChange }) {
 
   function renderOrders(settings) {
     const orders = $('#prizeOrders');
+    const counts = { awaiting: 0, pending: 0, purchased: 0, delivered: 0 };
+    for (const award of settings.awards) counts[!award.vendor_id ? 'awaiting' : award.fulfillment_status]++;
+    $('#prizeOrderSummary').textContent = settings.awards.length
+      ? `${counts.awaiting} awaiting choice · ${counts.pending} to buy · ${counts.purchased} purchased · ${counts.delivered} delivered`
+      : '';
+    const earlier = $('#earlierPrizePurchases');
+    earlier.hidden = !settings.earlier_fulfillments.length;
+    earlier.replaceChildren();
+    if (settings.earlier_fulfillments.length) {
+      earlier.append(element('h3', '', 'Purchases from earlier results'), element('p', 'notice warning',
+        'Results or prize settings changed after these cards were purchased. Review these records before buying any revised prizes.'));
+      for (const record of settings.earlier_fulfillments) earlier.append(element('p', 'earlier-prize-record',
+        `${record.name} · ${money(record.amount_cents, record.currency)} · ${record.vendor_name} · ${record.status === 'delivered' ? 'Delivered' : 'Purchased'}`));
+    }
     if (!settings.awards.length) {
       orders.replaceChildren(
         element('p', 'muted', 'Player vendor choices will appear here after you complete the tournament.')
       );
       return;
     }
-    const table = element('table', 'prize-orders');
-    const header = element('tr');
-    for (const text of ['Player', 'Prize', 'Chosen vendor']) header.append(element('th', '', text));
-    const head = element('thead');
-    head.append(header);
-    const body = element('tbody');
+    const list = element('div', 'prize-order-list');
     for (const award of settings.awards) {
-      const row = element('tr');
+      const row = element('article', 'prize-order');
       row.append(
-        element('td', '', `${award.name}${award.kind === 'consolation' ? ' · Consolation' : ''}`),
-        element('td', '', money(award.amount_cents, award.currency)),
-        element('td', '', award.vendor_name || 'Awaiting choice')
+        element('h4', '', `${award.name}${award.kind === 'consolation' ? ' · Consolation' : ''}`),
+        element('p', 'prize-order-amount', money(award.amount_cents, award.currency)),
+        element('p', 'muted', award.vendor_name || 'Awaiting vendor choice')
       );
-      body.append(row);
+      const label = element('label', '', `Gift-card status for ${award.name}`);
+      const select = element('select', 'prize-fulfillment-control');
+      select.id = `fulfillment-${award.player_id}`;
+      label.htmlFor = select.id;
+      select.dataset.hasVendor = String(Boolean(award.vendor_id));
+      select.append(new Option('To buy', 'pending'), new Option('Purchased', 'purchased'), new Option('Delivered', 'delivered'));
+      select.value = award.fulfillment_status;
+      select.addEventListener('change', async () => {
+        if (!loaded) return;
+        const id = eventId;
+        const status = select.value;
+        select.value = award.fulfillment_status;
+        message($('#prizeSettingsMessage'), 'Saving gift-card status…');
+        const result = await run(
+          () => request(`/api/championship/${id}/players/${award.player_id}/prize/fulfillment`,
+            { expectedRevision: loaded.revision, revealId: award.reveal_id, status }, 'PUT'),
+          (next) => {
+            loaded = null;
+            applyState(next);
+            message($('#prizeSettingsMessage'), 'Gift-card status saved.', 'success');
+          }
+        );
+        if (!result && eventId === id)
+          message($('#prizeSettingsMessage'), 'Could not confirm the gift-card status. Reconnect or log in, then try again.', 'error');
+      });
+      row.append(label, select);
+      list.append(row);
     }
-    table.append(head, body);
-    orders.replaceChildren(table);
+    orders.replaceChildren(list);
   }
 
   function renderStatus() {
     const stale = dirty && loaded && loaded.revision !== state?.revision;
     for (const field of form.elements) field.disabled = busy || !loaded;
     $('#savePrizeSettings').disabled = busy || !loaded || Boolean(stale);
+    $('#savePrizeDefaults').disabled = busy || !loaded || dirty || loaded.revision !== state?.revision;
+    for (const control of $('#prizeOrders').querySelectorAll('select'))
+      control.disabled = busy || !loaded || loaded.revision !== state?.revision || control.dataset.hasVendor !== 'true';
+    $('#prizeDefaultsStatus').textContent = dirty
+      ? 'Save your prize changes before saving the default setup.'
+      : loaded?.defaults_saved_at
+        ? 'A default setup is saved. New tournaments will use it automatically.'
+        : 'No default setup saved yet.';
     $('#prizeLinkPlayer').disabled = busy;
     $('#getPrivatePrizeLink').disabled = busy || !$('#prizeLinkPlayer').value;
     $('#reloadPrizeSettings').hidden = !dirty;
@@ -256,6 +302,17 @@ export function createPrizeAdmin({ run, applyState, onAuthLost, onChange }) {
         loaded = null;
         applyState(next);
         message($('#prizeSettingsMessage'), 'Private prize settings saved.', 'success');
+      }
+    );
+  });
+  $('#savePrizeDefaults').addEventListener('click', () => {
+    if (!loaded || dirty) return;
+    run(
+      () => request(`/api/championship/${eventId}/prizes/defaults`, { expectedRevision: loaded.revision }),
+      (next) => {
+        loaded = null;
+        applyState(next);
+        message($('#prizeSettingsMessage'), 'Default prize setup saved for future tournaments.', 'success');
       }
     );
   });

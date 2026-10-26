@@ -68,6 +68,16 @@
         </section>
         <div id="hostMessage" class="notice" role="status" hidden></div>
         <div id="hostBody">
+          <section class="card event-clock section-gap" aria-labelledby="clockHeading">
+            <div class="section-heading"><h2 id="clockHeading">Keep the night moving</h2><span class="eyebrow">EVENT CLOCK</span></div>
+            <dl class="clock-metrics">
+              <div><dt>Time in play</dt><dd id="playElapsed">00:00</dd></div>
+              <div><dt>Current event</dt><dd id="eventElapsed">00:00</dd></div>
+              <div><dt>Play remaining</dt><dd id="playRemaining">About 3–4 hours</dd></div>
+              <div><dt>Estimated finish</dt><dd id="estimatedFinish">Waiting to start</dd></div>
+            </dl>
+            <p id="clockNote" class="muted"></p>
+          </section>
           <div class="two-col section-gap">
             <section class="card">
               <div class="section-heading">
@@ -215,6 +225,12 @@
             </form>
             <div id="prizeSettingsMessage" class="notice" role="status" hidden></div>
             <div class="section-gap private-link-panel">
+              <h3>Ready for next time</h3>
+              <p class="muted">Save these amounts, currency, vendors, and artwork as the default for new tournaments.</p>
+              <button id="savePrizeDefaults" class="btn secondary full" type="button">Use saved settings for future tournaments</button>
+              <p id="prizeDefaultsStatus" class="muted" role="status"></p>
+            </div>
+            <div class="section-gap private-link-panel">
               <h3>Help a player open their prize</h3>
               <p class="muted">
                 Their original registration phone works automatically. For another device, give the player
@@ -239,8 +255,11 @@
               </div>
               <div id="prizeLinkMessage" class="notice" role="status" hidden></div>
             </div>
-            <h3 class="section-gap">Player vendor choices</h3>
-            <div id="prizeOrders" class="table-scroll section-gap"></div>
+            <h3 class="section-gap">Gift-card fulfillment</h3>
+            <p class="muted">Track each card from vendor choice to purchase and delivery. Purchasing locks the player's vendor choice; change the status back to “To buy” to let them choose again.</p>
+            <p id="prizeOrderSummary" class="prize-budget" role="status"></p>
+            <div id="prizeOrders" class="section-gap"></div>
+            <div id="earlierPrizePurchases" class="section-gap" hidden></div>
           </details>
           <section class="card section-gap">
             <div class="section-heading">

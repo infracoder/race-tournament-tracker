@@ -13,6 +13,7 @@ import {
 } from './ui.js';
 import { request } from './championship-client.js';
 import { createPrizeAdmin } from './prizes-admin.js';
+import { renderEventClock } from './event-clock.js';
 
 let state;
 let authenticated = false;
@@ -243,6 +244,7 @@ function render() {
   $('#pauseTournament').textContent = c?.paused ? 'Resume play' : 'Take a break';
   if (!initialized) return;
 
+  renderEventClock(state);
   renderEditor();
   $('#hostNextEvent').replaceChildren(
     eventCard(state.up_next, { heading: 'UP NEXT', compact: true, status: state.championship.status })
@@ -285,6 +287,10 @@ function render() {
   $('#editCorrection').disabled = busy || !select.value;
   renderFinish();
 }
+
+setInterval(() => {
+  if (authenticated && state?.initialized) renderEventClock(state);
+}, 1000);
 
 function renderFinish() {
   if (!state?.initialized || !authenticated) return;
