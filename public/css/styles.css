@@ -1664,23 +1664,56 @@ h3 {
 .private-link-panel .muted {
   margin-top: 14px;
 }
-.prize-orders {
+.prize-order-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 16px;
+}
+.prize-order {
+  padding: 20px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow-wrap: anywhere;
+}
+.prize-order h4 { margin: 0 0 10px; }
+.prize-order-amount { font-size: 24px; font-weight: 800; margin: 0 0 6px; }
+.prize-order label { margin-top: 18px; font-size: 12px; }
+.prize-fulfillment-control {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  min-width: 290px;
+  min-height: 44px;
+  padding: 10px 32px 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+  background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  font: inherit;
+  font-size: 16px;
 }
-.prize-orders th,
-.prize-orders td {
-  padding: 14px 10px;
-  border-bottom: 1px solid var(--line);
-  font-size: 13px;
+.earlier-prize-record { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.event-clock {
+  margin-bottom: 28px;
 }
-.prize-orders th {
+.clock-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  margin: 22px 0;
+}
+.clock-metrics dt {
+  font-size: 12px;
   color: var(--muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+}
+.clock-metrics dd {
+  margin: 7px 0 0;
+  font-size: clamp(18px, 2.2vw, 28px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 @media (max-width: 800px) {
   .prize-vendor-editors {
@@ -1688,6 +1721,9 @@ h3 {
   }
 }
 @media (max-width: 640px) {
+  .clock-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .prize-amount-grid {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
@@ -1698,11 +1734,6 @@ h3 {
   .private-badge {
     font-size: 8px;
     margin-left: 5px;
-  }
-  .prize-orders th,
-  .prize-orders td {
-    font-size: 11px;
-    padding: 12px 6px;
   }
 }
 .personal-prize-link {

@@ -103,6 +103,11 @@ function createChampionshipRouter(service, requireOrganizer, { publicBaseUrl } =
     requireOrganizer,
     action((req) => service.configurePrizes(req.params.id, req.body))
   );
+  router.post(
+    '/:id/prizes/defaults',
+    requireOrganizer,
+    action((req) => service.rememberPrizeSettings(req.params.id, req.body))
+  );
   router.get(
     '/:id/prizes/vendors/:vendorId/artwork',
     requireOrganizer,
@@ -127,6 +132,11 @@ function createChampionshipRouter(service, requireOrganizer, { publicBaseUrl } =
   router.put(
     '/:id/players/:playerId/prize/vendor',
     action((req) => service.choosePrizeVendor(req.params.id, req.params.playerId, bearer(req), req.body))
+  );
+  router.put(
+    '/:id/players/:playerId/prize/fulfillment',
+    requireOrganizer,
+    action((req) => service.setPrizeFulfillment(req.params.id, req.params.playerId, req.body))
   );
   router.get(
     '/:id/players/:playerId/prize-link',

@@ -19,7 +19,7 @@ function createApp({ database, organizerPin, now, publicBaseUrl } = {}) {
   app.use('/api/organizer', router);
   app.use(
     '/api/championship',
-    require('./routes/championship')(createChampionshipService(database), requireOrganizer, { publicBaseUrl })
+    require('./routes/championship')(createChampionshipService(database, { now }), requireOrganizer, { publicBaseUrl })
   );
   app.use('/api/players', require('./routes/players')(database));
   app.use('/api/battle', require('./routes/battle')(database));
