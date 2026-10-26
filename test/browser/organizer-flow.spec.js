@@ -87,6 +87,42 @@ test('a delayed initial session check cannot undo a successful host login', asyn
   await expect(page.getByRole('button', { name: 'Start the tournament' })).toBeVisible();
 });
 
+test('solo ties accept 1, 2, 2, 3 and still advance after saving both rounds', async ({ page, request }) => {
+  let state = await (await request.get('/api/championship/current')).json();
+  const id = state.championship.id;
+  state = await (await request.post(`/api/championship/${id}/start`, { data: { expectedRevision: state.revision } })).json();
+  while (state.active_slot.category !== 'solo') {
+    const slot = state.active_slot;
+    for (const round of slot.rounds) state = await (await request.put(`/api/championship/${id}/rounds/${round.id}/result`, { data: {
+      expectedRevision: state.revision,
+      ...(round.mode === 'renegade' ? { winningSide: 'cops' } : { groups: slot.participants.map(p => [p.player_id]) })
+    } })).json();
+    state = await (await request.post(`/api/championship/${id}/advance`, { data: { expectedRevision: state.revision } })).json();
+  }
+  const position = state.active_slot.position;
+  await page.goto('/organizer.html');
+  await page.getByLabel('Organizer PIN').fill('browser-test-2468');
+  await page.getByRole('button', { name: 'Open host controls' }).click();
+  for (const mode of ['balloon', 'coin']) {
+    for (const [index, rank] of ['1', '2', '2', '3'].entries()) await page.locator('#resultFields select').nth(index).selectOption(rank);
+    const saved = page.waitForResponse(r => r.url().includes(`-${mode}/result`) && r.request().method() === 'PUT');
+    await page.getByRole('button', { name: 'Save result' }).click();
+    const response = await saved;
+    expect(response.status()).toBe(200);
+    state = await response.json();
+    const results = state.active_slot.rounds.find(r => r.mode === mode).results;
+    expect(results.map(r => r.rank).sort()).toEqual([1, 2, 2, 4]);
+    expect(results.map(r => r.score_units).sort((a, b) => a - b)).toEqual([144, 198, 198, 300]);
+    if (mode === 'balloon') await expect(page.locator('#editorBadge')).toHaveText('Coin Runners');
+  }
+  await expect(page.locator('#resultForm')).toBeHidden();
+  const advanced = page.waitForResponse(r => r.url().endsWith('/advance'));
+  await page.getByRole('button', { name: 'Next event' }).click();
+  const response = await advanced;
+  expect(response.status()).toBe(200);
+  expect((await response.json()).championship.cursor).toBe(position + 1);
+});
+
 test('result fields and editor navigation stay locked until a slow save finishes', async ({ page, request }) => {
   await page.goto('/organizer.html');
   await page.getByLabel('Organizer PIN').fill('browser-test-2468');

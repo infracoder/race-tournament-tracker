@@ -453,9 +453,10 @@ $('#resultForm').addEventListener('submit', (event) => {
           grouped.get(rank).push(select.name);
         }
         const entries = [...grouped.entries()].sort((a, b) => a[0] - b[0]);
+        const denseSoloRanks = draft.round.mode !== 'race' && entries.every(([rank], index) => rank === index + 1);
         let expected = 1;
         for (const [rank, players] of entries) {
-          if (rank !== expected)
+          if (rank !== expected && !denseSoloRanks)
             throw new Error(
               'Use consecutive finishing positions. After two players tie for 1st, the next position is 3rd.'
             );
